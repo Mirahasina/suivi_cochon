@@ -1,98 +1,112 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useRouter } from 'expo-router';
+import React, { useCallback } from 'react';
+import { ActivityIndicator, FlatList, RefreshControl, Text, TouchableOpacity, View } from 'react-native';
+import { Colors } from '../../constants/theme';
+import { usePigs } from '../../hooks/usePigs'; // Import custom hook
+import { Pig } from '../../services/api';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const { data: pigs = [], isLoading, isError, refetch, isRefetching } = usePigs();
+  const router = useRouter();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const onRefresh = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 justify-center items-center bg-background">
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text className="mt-4 text-gray-500">Chargement des cochons...</Text>
+      </View>
+    );
+  }
+
+  if (isError && (!pigs || pigs.length === 0)) {
+    return (
+      <View className="flex-1 justify-center items-center bg-background px-8">
+        <IconSymbol name="exclamationmark.triangle" size={64} color={Colors.danger} />
+        <Text className="mt-5 text-center text-lg font-bold">Erreur de connexion</Text>
+        <Text className="mt-2 text-center text-gray-600">
+          Impossible de charger les données. Vérifiez que le serveur est démarré.
+        </Text>
+        <TouchableOpacity
+          className="mt-6 bg-primary px-6 py-3 rounded-xl"
+          onPress={() => refetch()}
+        >
+          <Text className="text-white font-bold">Réessayer</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const renderPigItem = ({ item }: { item: Pig }) => (
+    <TouchableOpacity
+      className="bg-white rounded-[20px] p-5 mx-5 mb-4 shadow-xl shadow-primary/10 elevation-4"
+      onPress={() => router.push(`/pig/${item.id}`)}
+    >
+      <View className="flex-row justify-between items-center mb-4">
+        <Text className="text-primary font-bold text-xl">{item.name}</Text>
+        <Text className="bg-background px-3 py-1 rounded-xl text-primary text-[12px] font-bold">{item.breed}</Text>
+      </View>
+      <View className="flex-row gap-5">
+        <View className="flex-1">
+          <Text className="text-primary opacity-60 text-[12px] mb-1">Âge</Text>
+          <Text className="font-semibold text-base">{item.ageFormatted}</Text>
+        </View>
+        <View className="flex-1">
+          <Text className="text-primary opacity-60 text-[12px] mb-1">Statut</Text>
+          <Text className="font-semibold text-base">{item.isCastrated ? 'Castré' : 'Entier'}</Text>
+        </View>
+      </View>
+      {item.currentStatus?.isUnderweight && (
+        <View className="mt-4 bg-[#FFF0F0] p-2.5 rounded-xl border-l-4 border-l-danger">
+          <Text className="text-danger font-bold text-[13px]">⚠️ croissance à surveiller</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+
+  return (
+    <View className="flex-1 bg-background">
+      <FlatList
+        data={pigs}
+        renderItem={renderPigItem}
+        keyExtractor={(item) => item.id.toString()}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} colors={[Colors.primary]} />}
+        ListHeaderComponent={
+          <View className="p-6 bg-primary rounded-b-[30px] mb-4">
+            <Text className="text-secondary font-bold text-3xl">Mon élevage</Text>
+            <Text className="text-white opacity-80 text-base">{pigs.length} cochons actifs</Text>
+            {isError && (
+              <View className="mt-2 bg-danger/20 p-2 rounded-lg">
+                <Text className="text-white font-bold text-xs">⚠️ Mode Hors-Ligne (Données en cache)</Text>
+              </View>
+            )}
+          </View>
+        }
+        ListEmptyComponent={
+          <View className="flex-1 items-center mt-24 p-8">
+            <IconSymbol name="house" size={64} color={Colors.border} />
+            <Text className="mt-5 mb-8 text-center text-base">Votre enclos est vide.</Text>
+            <TouchableOpacity
+              className="bg-secondary px-8 py-4 rounded-[15px]"
+              onPress={() => router.push('/add-pig')}
+            >
+              <Text className="text-white font-bold text-base">Ajouter mon premier cochon</Text>
+            </TouchableOpacity>
+          </View>
+        }
+      />
+
+      <TouchableOpacity
+        className="absolute right-6 bottom-6 bg-primary w-[65px] h-[65px] rounded-full items-center justify-center elevation-6 shadow-primary/30 border-2 border-secondary"
+        onPress={() => router.push('/add-pig')}
+      >
+        <Text className="text-secondary text-4xl font-light">+</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});

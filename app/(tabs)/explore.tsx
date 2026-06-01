@@ -1,112 +1,78 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, View, Text, TouchableOpacity } from 'react-native';
+import { healthService } from '../../services/api';
+import { Colors, Typography } from '../../constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+import { useNavigation } from 'expo-router';
 
-export default function TabTwoScreen() {
+export default function HealthScreen() {
+  const [reminders, setReminders] = useState<any[]>([]);
+
+  const loadReminders = async () => {
+    try {
+      const data = await healthService.getUpcoming();
+      setReminders(data);
+
+      data.forEach((item: any) => {
+        import('../../utils/notifications').then(({ scheduleReminder }) => {
+          scheduleReminder(
+            `Rappel Vaccin: ${item.vaccineType.name}`,
+            `${item.pig.name} doit recevoir son vaccin.`,
+            new Date(item.nextDueDate),
+            `vaccine-${item.id}`
+          );
+        });
+      });
+    } catch (error) {
+      console.log('Backend unreachable');
+    }
+  };
+
+  useEffect(() => {
+    loadReminders();
+  }, []);
+
+  const renderReminder = ({ item }: { item: any }) => (
+    <View className="flex-row bg-white rounded-[20px] p-[15px] mb-[15px] items-center shadow-xl shadow-primary/10 elevation-3">
+      <View className="items-center justify-center w-[65px] h-[65px] bg-background rounded-[15px]">
+        <Text className="text-[22px] font-bold text-primary">{new Date(item.nextDueDate).getDate()}</Text>
+        <Text className="text-[10px] text-primary uppercase font-bold">
+          {new Date(item.nextDueDate).toLocaleString('default', { month: 'short' })}
+        </Text>
+      </View>
+      <View className="flex-1 pl-[15px]">
+        <Text className="text-text text-base font-semibold">{item.vaccineType.name}</Text>
+        <View className="flex-row items-center gap-1 mt-1">
+          <IconSymbol name="pawprint.fill" size={14} color={Colors.primary} />
+          <Text className="text-primary text-[12px]">{item.pig.name}</Text>
+        </View>
+      </View>
+      <TouchableOpacity className="p-1">
+        <IconSymbol name="checkmark.circle.fill" size={32} color={Colors.success} />
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+    <View className="flex-1 bg-background">
+      <View className="p-8 bg-primary rounded-b-[35px] mb-2.5">
+        <Text className="text-secondary text-[28px] font-bold">Santé & prévention</Text>
+        <Text className="text-white opacity-80 text-[14px]">Rappels de vaccination pour votre cheptel</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={{ padding: 20 }}>
+        {reminders.length > 0 ? (
+          reminders.map(item => (
+            <View key={item.id}>{renderReminder({ item })}</View>
+          ))
+        ) : (
+          <View className="items-center mt-[100px] p-10">
+            <IconSymbol name="calendar" size={80} color={Colors.border} />
+            <Text className="text-primary mt-5 text-center opacity-60">Tout est à jour !{'\n'}Aucun vaccin prévu prochainement.</Text>
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-});
