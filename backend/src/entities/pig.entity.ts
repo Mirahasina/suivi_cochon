@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, OneToMany } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Batch } from './batch.entity';
 import { FeedingEntry } from './feeding-entry.entity';
 import { Piglet } from './piglet.entity';
@@ -17,7 +17,7 @@ export class Pig {
     breed: string;
 
     @Column()
-    gender: string; // "MALE", "FEMALE"
+    gender: string;
 
     @Column({ nullable: true })
     birthDate: Date;
@@ -37,7 +37,6 @@ export class Pig {
     @Column({ nullable: true })
     castrationDate: Date;
 
-    // Reproduction
     @Column({ nullable: true })
     matingDate: Date;
 
@@ -51,24 +50,23 @@ export class Pig {
     externalPartnerOwner: string;
 
     @Column({ nullable: true })
-    farrowingDate: Date; // Expected farrowing date (calculated)
+    farrowingDate: Date;
 
     @Column({ nullable: true })
-    actualFarrowingDate?: Date; // Actual farrowing date (recorded)
+    actualFarrowingDate?: Date;
 
     @Column({ nullable: true })
-    totalBorn?: number; // Total piglets born (alive + stillborn)
+    totalBorn?: number;
 
     @Column({ nullable: true })
-    bornAlive?: number; // Piglets born alive
+    bornAlive?: number;
 
     @Column({ nullable: true })
-    stillborn?: number; // Stillborn piglets
+    stillborn?: number;
 
     @Column({ default: 0 })
-    nursingPiglets: number; // Current number nursing (legacy, may be replaced by counting ALIVE piglets)
+    nursingPiglets: number;
 
-    // Status & Sale
     @Column({ default: 'ACTIVE' })
     status: 'ACTIVE' | 'SOLD' | 'DECEASED';
 
@@ -98,9 +96,4 @@ export class Pig {
 
     @ManyToOne(() => Batch, (batch) => batch.pigs, { nullable: true })
     batch: Batch;
-    
-}
-
-function ManyToOne(arg0: () => typeof Batch, arg1: (batch: any) => any, arg2: { nullable: boolean; }): (target: Pig, propertyKey: "batch") => void {
-    throw new Error('Function not implemented.');
 }
