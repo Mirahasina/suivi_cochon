@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, OneToMany } from 'typeorm';
 import { Batch } from './batch.entity';
 import { FeedingEntry } from './feeding-entry.entity';
 import { Piglet } from './piglet.entity';
@@ -98,6 +98,7 @@ export class Pig {
 
     @ManyToOne(() => Batch, (batch) => batch.pigs, { nullable: true })
     batch: Batch;
+    
 }
 
 function ManyToOne(arg0: () => typeof Batch, arg1: (batch: any) => any, arg2: { nullable: boolean; }): (target: Pig, propertyKey: "batch") => void {
