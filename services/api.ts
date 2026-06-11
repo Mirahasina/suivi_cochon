@@ -5,6 +5,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.0.104:3000';
 
 
 const api = axios.create({
+    timeout: 60000,
     baseURL: API_URL,
 });
 
@@ -27,14 +28,12 @@ export interface Pig {
     initialWeight?: number;
     isCastrated: boolean;
     castrationDate?: string;
-    // Reproduction
     matingDate?: string;
     partnerId?: number;
     partnerName?: string;
     motherId?: number;
     farrowingDate?: string;
     nursingPiglets: number;
-    // Status & Age
     status: 'ACTIVE' | 'SOLD' | 'DECEASED';
     ageFormatted: string;
     ageInWeeks: number;
