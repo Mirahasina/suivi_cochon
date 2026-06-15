@@ -1,0 +1,7 @@
+# Env files — ne jamais committer les secrets
+.env
+.env.*
+
+# Build output
+dist/
+node_modules/

@@ -1,21 +1,26 @@
-import { Controller, Get, Post, Body, ParseIntPipe } from '@nestjs/common';
+import { Body, Controller, Get, ParseIntPipe, Post } from '@nestjs/common';
 import { HealthService } from './health.service';
 
-@Controller('health')
+@Controller()
 export class HealthController {
     constructor(private readonly healthService: HealthService) { }
 
-    @Get('vaccines')
+    @Get('ping')
+    ping() {
+        return { status: 'ok', timestamp: new Date().toISOString() };
+    }
+
+    @Get('health/vaccines')
     getVaccineTypes() {
         return this.healthService.getVaccineTypes();
     }
 
-    @Get('upcoming')
+    @Get('health/upcoming')
     getUpcoming() {
         return this.healthService.getUpcomingVaccinations();
     }
 
-    @Post('record')
+    @Post('health/record')
     recordVaccination(
         @Body('pigId', ParseIntPipe) pigId: number,
         @Body('vaccineTypeId', ParseIntPipe) vaccineTypeId: number,
