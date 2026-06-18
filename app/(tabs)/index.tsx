@@ -1,6 +1,6 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useRouter } from 'expo-router';
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, Text, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../../constants/theme';
 import { usePigs } from '../../hooks/usePigs'; // Import custom hook
@@ -9,16 +9,33 @@ import { Pig } from '../../services/api';
 export default function HomeScreen() {
   const { data: pigs = [], isLoading, isError, refetch, isRefetching } = usePigs();
   const router = useRouter();
+  const [showWakeHint, setShowWakeHint] = useState(false);
 
   const onRefresh = useCallback(async () => {
     await refetch();
   }, [refetch]);
 
+  // Le serveur (hébergement gratuit) peut mettre jusqu'à ~1 min à se réveiller.
+  // Après quelques secondes de chargement, on prévient l'utilisateur au lieu
+  // de laisser un écran de chargement muet ou une erreur trompeuse.
+  useEffect(() => {
+    if (isLoading) {
+      const timer = setTimeout(() => setShowWakeHint(true), 5000);
+      return () => clearTimeout(timer);
+    }
+    setShowWakeHint(false);
+  }, [isLoading]);
+
   if (isLoading) {
     return (
-      <View className="flex-1 justify-center items-center bg-background">
+      <View className="flex-1 justify-center items-center bg-background px-8">
         <ActivityIndicator size="large" color={Colors.primary} />
         <Text className="mt-4 text-gray-500">Chargement des cochons...</Text>
+        {showWakeHint && (
+          <Text className="mt-2 text-center text-gray-400 text-[13px]">
+            Le serveur se réveille, cela peut prendre jusqu&apos;à une minute. Merci de patienter…
+          </Text>
+        )}
       </View>
     );
   }
@@ -27,15 +44,18 @@ export default function HomeScreen() {
     return (
       <View className="flex-1 justify-center items-center bg-background px-8">
         <IconSymbol name="exclamationmark.triangle" size={64} color={Colors.danger} />
-        <Text className="mt-5 text-center text-lg font-bold">Erreur de connexion</Text>
+        <Text className="mt-5 text-center text-lg font-bold">Connexion impossible</Text>
         <Text className="mt-2 text-center text-gray-600">
-          Impossible de charger les données. Vérifiez que le serveur est démarré.
+          Le serveur n&apos;a pas répondu à temps. Il était peut-être en veille : appuyez sur
+          « Réessayer », le réveil peut prendre jusqu&apos;à une minute.
         </Text>
         <TouchableOpacity
-          className="mt-6 bg-primary px-6 py-3 rounded-xl"
+          className="mt-6 bg-primary px-6 py-3 rounded-xl flex-row items-center"
           onPress={() => refetch()}
+          disabled={isRefetching}
         >
-          <Text className="text-white font-bold">Réessayer</Text>
+          {isRefetching && <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />}
+          <Text className="text-white font-bold">{isRefetching ? 'Connexion…' : 'Réessayer'}</Text>
         </TouchableOpacity>
       </View>
     );
