@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { TextInput, TouchableOpacity, ScrollView, View, Text, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { pigService, healthService } from '../../../services/api';
+import { pigService } from '../../../services/api';
+import { PIG_BREEDS } from '../../../constants/breeds';
 import { Colors, Typography } from '../../../constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -24,7 +25,7 @@ export default function EditPigScreen() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
-    const breeds = ['Large White', 'Landrace', 'Piétrain', 'Local (Gasy)'];
+    const breeds = [...PIG_BREEDS];
 
     useEffect(() => {
         const fetchPig = async () => {

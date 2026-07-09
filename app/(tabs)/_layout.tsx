@@ -36,12 +36,26 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="batches"
+        options={{
+          title: 'Lots',
+          tabBarIcon: ({ color }) => <Ionicons name="grid" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="explore"
         options={{
           title: 'Santé',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="medical" size={size} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Réglages',
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="gearshape.fill" color={color} />,
         }}
       />
     </Tabs>

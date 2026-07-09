@@ -70,11 +70,27 @@ export class Pig {
     @Column({ default: 'ACTIVE' })
     status: 'ACTIVE' | 'SOLD' | 'DECEASED';
 
+    /** CARCASS_KG = cochon mort/abattu vendu au kg, LIVE_KG = vivant au kg */
+    @Column({ nullable: true })
+    saleType: 'CARCASS_KG' | 'LIVE_KG' | 'UNIT' | null;
+
+    @Column({ type: 'float', nullable: true })
+    saleWeightKg: number;
+
+    @Column({ type: 'float', nullable: true })
+    salePricePerKg: number;
+
     @Column({ type: 'bigint', nullable: true })
     salePrice: number;
 
     @Column({ nullable: true })
     saleDate: Date;
+
+    @Column({ default: false })
+    isQuarantined: boolean;
+
+    @Column({ nullable: true })
+    quarantineReason: string;
 
     @CreateDateColumn()
     createdAt: Date;

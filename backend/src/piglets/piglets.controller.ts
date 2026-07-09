@@ -19,10 +19,22 @@ export class PigletsController {
     @Patch(':id/sell')
     sell(
         @Param('id') id: string,
-        @Body('price') price: number,
-        @Body('date') date?: string,
+        @Body() body: {
+            saleType?: 'PIGLET_UNIT' | 'CARCASS_KG';
+            price?: number;
+            totalPrice?: number;
+            pricePerKg?: number;
+            weightKg?: number;
+            date?: string;
+        },
     ) {
-        return this.pigletsService.sell(+id, price, date);
+        return this.pigletsService.sell(+id, {
+            saleType: body.saleType || 'PIGLET_UNIT',
+            totalPrice: body.totalPrice ?? body.price,
+            pricePerKg: body.pricePerKg,
+            weightKg: body.weightKg,
+            date: body.date,
+        });
     }
 
     @Patch(':id/died')

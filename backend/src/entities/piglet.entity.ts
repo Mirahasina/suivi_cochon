@@ -24,6 +24,15 @@ export class Piglet {
     @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
     salePrice?: number;
 
+    @Column({ nullable: true })
+    saleType: 'PIGLET_UNIT' | 'LIVE_KG' | 'CARCASS_KG' | null;
+
+    @Column({ type: 'float', nullable: true })
+    saleWeightKg: number;
+
+    @Column({ type: 'float', nullable: true })
+    salePricePerKg: number;
+
     @ManyToOne(() => Pig, { nullable: false })
     mother: Pig;
 

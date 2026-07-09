@@ -25,6 +25,11 @@ const MAPPING = {
   'calendar': 'event',
   'checkmark.circle.fill': 'check-circle',
   'pawprint.fill': 'pets',
+  'syringe.fill': 'vaccines',
+  'wifi.slash': 'wifi-off',
+  'gearshape.fill': 'settings',
+  'arrow.clockwise': 'sync',
+  'exclamationmark.triangle': 'warning',
 } as IconMapping;
 
 /**

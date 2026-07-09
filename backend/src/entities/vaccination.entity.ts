@@ -19,6 +19,6 @@ export class Vaccination {
     @ManyToOne(() => Pig, (pig) => pig.vaccinations, { onDelete: 'CASCADE' })
     pig: Pig;
 
-    @ManyToOne(() => VaccineType, (vt) => vt.vaccinations)
+    @ManyToOne(() => VaccineType)
     vaccineType: VaccineType;
 }

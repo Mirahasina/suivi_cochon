@@ -1,5 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
-import { Vaccination } from './vaccination.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
 
 @Entity()
 export class VaccineType {
@@ -15,9 +14,18 @@ export class VaccineType {
     @Column({ nullable: true })
     defaultRecallDays: number;
 
+    @Column({ default: 'PIGLET' })
+    target: 'PIGLET' | 'SOW' | 'BOAR' | 'GILT' | 'ALL';
+
+    @Column({ default: 'IM' })
+    injectionRoute: string;
+
+    @Column({ nullable: true })
+    injectionSite: string;
+
+    @Column({ nullable: true })
+    timingNote: string;
+
     @Column({ default: false })
     isMandatory: boolean;
-
-    @OneToMany(() => Vaccination, (vaccination) => vaccination.vaccineType)
-    vaccinations: Vaccination[];
 }

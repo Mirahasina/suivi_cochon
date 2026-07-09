@@ -7,6 +7,7 @@ import 'react-native-reanimated';
 import '../global.css';
 import { registerForPushNotificationsAsync } from '../utils/notifications';
 import { asyncStoragePersister, queryClient } from './query-client';
+import { syncAll } from '../services/syncService';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -22,6 +23,14 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const notificationListener = useRef<any>(null);
   const responseListener = useRef<any>(null);
+
+  useEffect(() => {
+    syncAll().then((result) => {
+      if (result.synced > 0) {
+        queryClient.invalidateQueries();
+      }
+    });
+  }, []);
 
   useEffect(() => {
 

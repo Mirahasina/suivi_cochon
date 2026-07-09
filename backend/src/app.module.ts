@@ -10,10 +10,18 @@ import { VaccineType } from './entities/vaccine-type.entity';
 import { WeightEntry } from './entities/weight-entry.entity';
 import { Building } from './entities/building.entity';
 import { Batch } from './entities/batch.entity';
+import { AppSetting } from './entities/app-setting.entity';
+import { FeedRecipe } from './entities/feed-recipe.entity';
 import { HealthModule } from './health/health.module';
 import { PigletsModule } from './piglets/piglets.module';
 import { PigsModule } from './pigs/pigs.module';
 import { SyncModule } from './sync/sync.module';
+import { SeedModule } from './seed/seed.module';
+import { SettingsModule } from './settings/settings.module';
+import { BuildingsModule } from './buildings/buildings.module';
+import { BatchesModule } from './batches/batches.module';
+import { ReportsModule } from './reports/reports.module';
+import { FeedRecipesModule } from './feed-recipes/feed-recipes.module';
 
 @Module({
     imports: [
@@ -24,7 +32,7 @@ import { SyncModule } from './sync/sync.module';
             useFactory: (configService: ConfigService) => ({
                 type: 'postgres',
                 url: configService.get('DATABASE_URL'),
-                entities: [Pig, WeightEntry, VaccineType, Vaccination, GrowthNorm, FeedingEntry, Piglet, Building, Batch],
+                entities: [Pig, WeightEntry, VaccineType, Vaccination, GrowthNorm, FeedingEntry, Piglet, Building, Batch, AppSetting, FeedRecipe],
                 synchronize: true,
             }),
         }),
@@ -32,6 +40,12 @@ import { SyncModule } from './sync/sync.module';
         HealthModule,
         PigletsModule,
         SyncModule,
+        SeedModule,
+        SettingsModule,
+        BuildingsModule,
+        BatchesModule,
+        ReportsModule,
+        FeedRecipesModule,
     ],
 })
 export class AppModule { }

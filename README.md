@@ -1,45 +1,47 @@
-# Suivi Cochon Malagasy �
+# Suivi Cochon Malagasy
 
-Logiciel de gestion de cheptel avec suivi financier, sanitaire et de reproduction.
+Application mobile de gestion de cheptel porcin avec suivi financier, sanitaire et de reproduction — adaptée au contexte malgache.
 
-## 🚀 Démarrage Rapide
+## Démarrage rapide
 
-### 1. Lancer le Backend (Serveur)
-Le serveur gère la base de données et les calculs théoriques.
+### Backend (API sur Render ou local)
 
 ```bash
 cd backend
 npm install
 npm run start:dev
 ```
-*Note : Le serveur écoute sur le port 3000 et accepte les connexions réseau (`0.0.0.0`).*
 
-### 2. Initialiser les Données (Seed)
-Pour remplir la base de données avec les types de vaccins (Fer, Vitamines, etc.) et les normes de croissance :
+Le seed (vaccins, normes par race, 52 semaines) s'exécute **automatiquement** au démarrage.
 
-```bash
-cd backend
-npm run seed
-```
-
-### 3. Lancer le Frontend (Application Mobile)
-Depuis la racine du projet :
+### Application mobile
 
 ```bash
 npm install
 npx expo start
 ```
-*Utilisez **Expo Go** sur votre téléphone Android pour tester.*
 
-## ⚙️ Configuration Réseau
-Pour que le téléphone puisse communiquer avec l'ordinateur :
-1. Les deux doivent être sur le **même Wi-Fi**.
-2. L'adresse IP de l'ordinateur est configurée dans `services/api.ts`. 
-   Actuellement : `http://192.168.0.104:3000`.
+Pour un build APK : `eas build --profile preview`
 
-## 🛠️ Fonctionnalités incluses
-- **Gestion Individuelle** : Ajout, Modification et Suppression de cochons.
-- **Santé** : Suivi des vaccins, fer, vitamines et déparasitage.
-- **Reproduction** : Enregistrement des saillies avec choix du partenaire mâle.
-- **Finances** : Calcul des bénéfices, coûts alimentaires et prix de vente.
-- **Comparaison Alimentaire** : Réel vs Théorique (normes de croissance).
+L'API de production est configurée dans `eas.json` : `https://suivi-cochon1.onrender.com`
+
+## Fonctionnalités
+
+- **Cheptel** : ajout, suivi, import CSV, lots et bâtiments
+- **Croissance auto** : poids et repas calculés selon l'âge et la race (modifiables)
+- **8 races** : Large White, Landrace, Piétrain, Duroc, Hampshire, Croisé, Local (Gasy), Autre
+- **Vaccins** : 11 types + planning automatique selon l'âge
+- **PPA** : alertes biosécurité (pas de vaccin — prévention uniquement)
+- **Finances** : prix provende par phase, estimation vente vivant, mode simple
+- **Hors-ligne** : cache + file d'attente + synchronisation
+
+## Paramètres recommandés (Madagascar)
+
+| Paramètre | Valeur indicative |
+|-----------|-------------------|
+| Provende démarrage | 2 200 Ar/kg |
+| Provende croissance | 2 000 Ar/kg |
+| Provende finition | 1 800 Ar/kg |
+| Porc vivant | 10 000 – 14 000 Ar/kg (selon région) |
+
+À ajuster dans l'onglet **Réglages** selon votre fournisseur (LFL, Farmshop, aliment local).

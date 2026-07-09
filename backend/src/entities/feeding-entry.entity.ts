@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
 import { Pig } from './pig.entity';
 
 @Entity()
@@ -9,10 +9,13 @@ export class FeedingEntry {
     @Column({ type: 'float' })
     quantityKg: number;
 
-    @Column({ type: 'bigint' }) // Ariary unit price or total cost
+    @Column({ type: 'bigint' })
     costAriary: number;
 
-    @CreateDateColumn()
+    @Column({ default: false })
+    isManual: boolean;
+
+    @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
     date: Date;
 
     @ManyToOne(() => Pig, (pig) => pig.feedingEntries, { onDelete: 'CASCADE' })

@@ -1,5 +1,5 @@
 import axios from 'axios';
-
+import { enqueue, isNetworkError } from './offlineQueue';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://suivi-cochon1.onrender.com';
 
@@ -16,6 +16,42 @@ api.interceptors.response.use(
         return Promise.reject(error);
     }
 );
+
+export interface VaccineType {
+    id: number;
+    name: string;
+    description?: string;
+    defaultRecallDays: number;
+    target: 'PIGLET' | 'SOW' | 'BOAR' | 'GILT' | 'ALL';
+    injectionRoute: string;
+    injectionSite?: string;
+    timingNote?: string;
+}
+
+export interface VaccineSuggestion {
+    pigId: number;
+    pigName: string;
+    vaccineTypeId: number;
+    vaccineName: string;
+    label: string;
+    injectionRoute?: string;
+    injectionRouteLabel?: string;
+    injectionSite?: string;
+    timingNote?: string;
+    target?: string;
+    dueAtDays: number;
+    ageInDays: number;
+    status: 'overdue' | 'due' | 'upcoming';
+    scheduledDate: string;
+}
+
+export interface Vaccination {
+    id: number;
+    date: string;
+    nextDueDate?: string;
+    notes?: string;
+    vaccineType: { id: number; name: string; description?: string };
+}
 
 export interface Pig {
     id: number;
@@ -39,16 +75,38 @@ export interface Pig {
     ageInWeeks: number;
     salePrice?: number;
     saleDate?: string;
+    saleType?: 'CARCASS_KG' | 'LIVE_KG' | 'UNIT';
+    saleWeightKg?: number;
+    salePricePerKg?: number;
+    isQuarantined?: boolean;
+    quarantineReason?: string;
+    vaccinations?: Vaccination[];
+    weightChart?: { date: string; weight: number; isManual?: boolean }[];
+    normCurve?: { week: number; expectedWeight: number }[];
+    batch?: { id: number; name: string };
+    currentStatus: {
+        expectedWeight: number | null;
+        recommendedFeed: number | null;
+        currentWeight: number | null;
+        todayFeedKg: number | null;
+        todayFeedCost: number | null;
+        isWeightManual: boolean;
+        isFeedManual: boolean;
+        isUnderweight: boolean;
+        feedPhase?: string;
+    };
     financials: {
         monthlyFeedingCost: number;
         actualMonthlyFeedKg: number;
         theoreticalMonthlyFeedKg: number;
         totalInvestment: number;
-    };
-    currentStatus: {
-        expectedWeight: number | null;
-        recommendedFeed: number | null;
-        isUnderweight: boolean;
+        feedPricePerKg?: number;
+        feedPriceStarter?: number;
+        feedPriceGrowth?: number;
+        feedPriceFinish?: number;
+        livePigSalePricePerKg?: number;
+        liveSaleEstimate?: number;
+        simpleFinanceMode?: boolean;
     };
 }
 
@@ -64,8 +122,16 @@ export const pigService = {
     },
 
     create: async (data: Partial<Pig>) => {
-        const response = await api.post<Pig>('/pigs', data);
-        return response.data;
+        try {
+            const response = await api.post<Pig>('/pigs', data);
+            return response.data;
+        } catch (error) {
+            if (isNetworkError(error)) {
+                await enqueue({ type: 'CREATE_PIG', payload: data as Record<string, unknown> });
+                return { queued: true, ...data } as any;
+            }
+            throw error;
+        }
     },
 
     update: async (id: number, data: Partial<Pig>) => {
@@ -79,13 +145,29 @@ export const pigService = {
     },
 
     addWeight: async (id: number, weight: number) => {
-        const response = await api.post(`/pigs/${id}/weight`, { weight });
-        return response.data;
+        try {
+            const response = await api.post(`/pigs/${id}/weight`, { weight });
+            return response.data;
+        } catch (error) {
+            if (isNetworkError(error)) {
+                await enqueue({ type: 'ADD_WEIGHT', payload: { pigId: id, weight } });
+                return { queued: true };
+            }
+            throw error;
+        }
     },
 
     addFeeding: async (id: number, quantityKg: number, costAriary: number) => {
-        const response = await api.post(`/pigs/${id}/feeding`, { quantityKg, costAriary });
-        return response.data;
+        try {
+            const response = await api.post(`/pigs/${id}/feeding`, { quantityKg, costAriary });
+            return response.data;
+        } catch (error) {
+            if (isNetworkError(error)) {
+                await enqueue({ type: 'ADD_FEEDING', payload: { pigId: id, quantityKg, costAriary } });
+                return { queued: true };
+            }
+            throw error;
+        }
     },
 
     recordMating: async (id: number, partnerId?: number, date?: string, isExternal?: boolean, partnerName?: string) => {
@@ -98,15 +180,34 @@ export const pigService = {
         return response.data;
     },
 
-    sell: async (id: number, price: number, date?: string) => {
-        const response = await api.post(`/pigs/${id}/sell`, { price, date });
+    sell: async (
+        id: number,
+        data: {
+            saleType: 'CARCASS_KG' | 'LIVE_KG' | 'UNIT';
+            pricePerKg?: number;
+            weightKg?: number;
+            totalPrice?: number;
+            date?: string;
+        },
+    ) => {
+        const response = await api.post(`/pigs/${id}/sell`, data);
+        return response.data;
+    },
+
+    importBulk: async (pigs: Partial<Pig>[]) => {
+        const response = await api.post('/pigs/bulk', { pigs });
+        return response.data;
+    },
+
+    setQuarantine: async (id: number, isQuarantined: boolean, reason?: string) => {
+        const response = await api.post(`/pigs/${id}/quarantine`, { isQuarantined, reason });
         return response.data;
     },
 };
 
 export const healthService = {
     getVaccineTypes: async () => {
-        const response = await api.get('/health/vaccines');
+        const response = await api.get<VaccineType[]>('/health/vaccines');
         return response.data;
     },
 
@@ -115,9 +216,125 @@ export const healthService = {
         return response.data;
     },
 
-    recordVaccination: async (data: { pigId: number; vaccineTypeId: number; date: string; notes?: string }) => {
-        const response = await api.post('/health/record', data);
+    getSuggested: async () => {
+        const response = await api.get<VaccineSuggestion[]>('/health/suggested');
         return response.data;
+    },
+
+    getSuggestedForPig: async (pigId: number) => {
+        const response = await api.get<VaccineSuggestion[]>(`/health/suggested/${pigId}`);
+        return response.data;
+    },
+
+    recordVaccination: async (data: { pigId: number; vaccineTypeId: number; date: string; notes?: string }) => {
+        try {
+            const response = await api.post('/health/record', data);
+            return response.data;
+        } catch (error) {
+            if (isNetworkError(error)) {
+                await enqueue({ type: 'RECORD_VACCINATION', payload: data });
+                return { queued: true };
+            }
+            throw error;
+        }
+    },
+
+    getBiosecurity: async () => {
+        const response = await api.get('/health/biosecurity');
+        return response.data as {
+            title: string;
+            alert: string;
+            symptoms: string[];
+            prevention: string[];
+        };
+    },
+};
+
+export interface Building {
+    id: number;
+    name: string;
+    capacity?: number;
+    location?: string;
+    batches?: Batch[];
+}
+
+export interface Batch {
+    id: number;
+    name: string;
+    startDate?: string;
+    status: 'ACTIVE' | 'CLOSED';
+    building?: Building;
+    pigs?: Pig[];
+}
+
+export const buildingService = {
+    getAll: async () => {
+        const response = await api.get<Building[]>('/buildings');
+        return response.data;
+    },
+    create: async (data: { name: string; capacity?: number; location?: string }) => {
+        const response = await api.post('/buildings', data);
+        return response.data;
+    },
+    delete: async (id: number) => {
+        await api.delete(`/buildings/${id}`);
+    },
+};
+
+export const batchService = {
+    getAll: async () => {
+        const response = await api.get<Batch[]>('/batches');
+        return response.data;
+    },
+    create: async (data: { name: string; startDate?: string; buildingId?: number }) => {
+        const response = await api.post('/batches', data);
+        return response.data;
+    },
+    update: async (id: number, data: Partial<Batch> & { buildingId?: number }) => {
+        const response = await api.patch(`/batches/${id}`, data);
+        return response.data;
+    },
+    delete: async (id: number) => {
+        await api.delete(`/batches/${id}`);
+    },
+};
+
+export const reportService = {
+    getMonthly: async () => {
+        const response = await api.get('/reports/monthly');
+        return response.data;
+    },
+};
+
+export interface FeedIngredient {
+    name: string;
+    percentKg: number;
+    costPerKg: number;
+}
+
+export interface FeedRecipe {
+    id: number;
+    name: string;
+    costPerKg: number;
+    ingredients: string;
+    isActive: boolean;
+}
+
+export const feedRecipeService = {
+    getAll: async () => {
+        const response = await api.get<FeedRecipe[]>('/feed-recipes');
+        return response.data;
+    },
+    create: async (data: { name: string; ingredients: FeedIngredient[] }) => {
+        const response = await api.post('/feed-recipes', data);
+        return response.data;
+    },
+    activate: async (id: number) => {
+        const response = await api.patch(`/feed-recipes/${id}/activate`);
+        return response.data;
+    },
+    delete: async (id: number) => {
+        await api.delete(`/feed-recipes/${id}`);
     },
 };
 
@@ -129,6 +346,9 @@ export interface Piglet {
     deathDate?: string;
     saleDate?: string;
     salePrice?: number;
+    saleType?: 'PIGLET_UNIT' | 'LIVE_KG' | 'CARCASS_KG';
+    saleWeightKg?: number;
+    salePricePerKg?: number;
     motherId: number;
     fatherId?: number;
 }
@@ -152,8 +372,17 @@ export const pigletService = {
         return response.data;
     },
 
-    sell: async (pigletId: number, price: number, date?: string) => {
-        const response = await api.patch(`/piglets/${pigletId}/sell`, { price, date });
+    sell: async (
+        pigletId: number,
+        data: {
+            saleType: 'PIGLET_UNIT' | 'LIVE_KG' | 'CARCASS_KG';
+            totalPrice?: number;
+            pricePerKg?: number;
+            weightKg?: number;
+            date?: string;
+        },
+    ) => {
+        const response = await api.patch(`/piglets/${pigletId}/sell`, data);
         return response.data;
     },
 

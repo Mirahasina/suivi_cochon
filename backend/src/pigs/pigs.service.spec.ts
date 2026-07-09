@@ -5,6 +5,8 @@ import { GrowthNorm } from '../entities/growth-norm.entity';
 import { Pig } from '../entities/pig.entity';
 import { WeightEntry } from '../entities/weight-entry.entity';
 import { HealthService } from '../health/health.service';
+import { SettingsService } from '../settings/settings.service';
+import { FeedRecipesService } from '../feed-recipes/feed-recipes.service';
 import { CreatePigDto } from './dto/create-pig.dto';
 import { PigsService } from './pigs.service';
 
@@ -36,6 +38,16 @@ const mockHealthService = {
     recordVaccination: jest.fn(),
 };
 
+const mockFeedRecipesService = {
+    findActive: jest.fn().mockResolvedValue(null),
+};
+
+const mockSettingsService = {
+    getFeedPricePerKg: jest.fn().mockResolvedValue(2000),
+    getFeedPriceForWeek: jest.fn().mockResolvedValue(2000),
+    getAll: jest.fn().mockResolvedValue({ livePigSalePricePerKg: 12000, simpleFinanceMode: false }),
+};
+
 describe('PigsService', () => {
     let service: PigsService;
 
@@ -48,6 +60,8 @@ describe('PigsService', () => {
                 { provide: getRepositoryToken(FeedingEntry), useValue: mockFeedingRepository },
                 { provide: getRepositoryToken(GrowthNorm), useValue: mockGrowthNormRepository },
                 { provide: HealthService, useValue: mockHealthService },
+                { provide: SettingsService, useValue: mockSettingsService },
+                { provide: FeedRecipesService, useValue: mockFeedRecipesService },
             ],
         }).compile();
 

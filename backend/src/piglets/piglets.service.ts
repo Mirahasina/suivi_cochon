@@ -61,11 +61,27 @@ export class PigletsService {
         });
     }
 
-    async sell(pigletId: number, price: number, date?: string) {
-        const saleDate = date ? new Date(date) : new Date();
+    async sell(
+        pigletId: number,
+        data: {
+            saleType: 'PIGLET_UNIT' | 'LIVE_KG' | 'CARCASS_KG';
+            totalPrice?: number;
+            pricePerKg?: number;
+            weightKg?: number;
+            date?: string;
+        },
+    ) {
+        const saleDate = data.date ? new Date(data.date) : new Date();
+        let totalPrice = data.totalPrice;
+        if (data.saleType === 'CARCASS_KG' || data.saleType === 'LIVE_KG') {
+            totalPrice = Math.round((data.pricePerKg || 0) * (data.weightKg || 0));
+        }
         return this.pigletRepository.update(pigletId, {
             status: 'SOLD',
-            salePrice: price,
+            saleType: data.saleType,
+            salePrice: totalPrice,
+            salePricePerKg: data.pricePerKg,
+            saleWeightKg: data.weightKg,
             saleDate,
         });
     }

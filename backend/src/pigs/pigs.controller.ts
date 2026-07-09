@@ -4,11 +4,16 @@ import { PigsService } from './pigs.service';
 
 @Controller('pigs')
 export class PigsController {
-    constructor(private readonly pigsService: PigsService) { }
+    constructor(private readonly pigsService: PigsService) {}
 
     @Get()
     findAll() {
         return this.pigsService.findAll();
+    }
+
+    @Post('bulk')
+    importBulk(@Body() body: { pigs: CreatePigDto[] }) {
+        return this.pigsService.importBulk(body.pigs || []);
     }
 
     @Get(':id')
@@ -24,6 +29,14 @@ export class PigsController {
     @Patch(':id')
     update(@Param('id') id: string, @Body() updatePigDto: any) {
         return this.pigsService.update(+id, updatePigDto);
+    }
+
+    @Post(':id/quarantine')
+    setQuarantine(
+        @Param('id') id: string,
+        @Body() body: { isQuarantined: boolean; reason?: string },
+    ) {
+        return this.pigsService.setQuarantine(+id, body.isQuarantined, body.reason);
     }
 
     @Delete(':id')
@@ -52,7 +65,23 @@ export class PigsController {
     }
 
     @Post(':id/sell')
-    sell(@Param('id') id: string, @Body('price') price: number, @Body('date') date?: string) {
-        return this.pigsService.sell(+id, price, date);
+    sell(
+        @Param('id') id: string,
+        @Body() body: {
+            saleType: 'CARCASS_KG' | 'LIVE_KG' | 'UNIT';
+            pricePerKg?: number;
+            weightKg?: number;
+            totalPrice?: number;
+            price?: number;
+            date?: string;
+        },
+    ) {
+        return this.pigsService.sell(+id, {
+            saleType: body.saleType || 'UNIT',
+            pricePerKg: body.pricePerKg,
+            weightKg: body.weightKg,
+            totalPrice: body.totalPrice ?? body.price,
+            date: body.date,
+        });
     }
 }
