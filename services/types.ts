@@ -7,6 +7,9 @@ export interface VaccineType {
     injectionRoute: string;
     injectionSite?: string;
     timingNote?: string;
+    isMandatory?: boolean;
+    isEnabled?: boolean;
+    isCustom?: boolean;
 }
 
 export interface VaccineSuggestion {

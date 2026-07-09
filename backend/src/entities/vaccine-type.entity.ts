@@ -28,4 +28,10 @@ export class VaccineType {
 
     @Column({ default: false })
     isMandatory: boolean;
+
+    @Column({ default: true })
+    isEnabled: boolean;
+
+    @Column({ default: false })
+    isCustom: boolean;
 }

@@ -301,6 +301,34 @@ export const healthService = {
         }
     },
 
+    createVaccineType: async (data: {
+        name: string;
+        defaultRecallDays: number;
+        target?: VaccineType['target'];
+        injectionRoute?: string;
+        description?: string;
+        timingNote?: string;
+    }) => {
+        const response = await api.post<VaccineType>('/health/vaccines', data);
+        const list = [...((await getVaccineTypes()) || []).filter((v) => v.id !== response.data.id), response.data];
+        await saveVaccineTypes(list);
+        return response.data;
+    },
+
+    setVaccineEnabled: async (id: number, isEnabled: boolean) => {
+        const response = await api.patch<VaccineType>(`/health/vaccines/${id}/enabled`, { isEnabled });
+        const list = (await getVaccineTypes()) || [];
+        await saveVaccineTypes(list.map((v) => (v.id === id ? response.data : v)));
+        return response.data;
+    },
+
+    deleteCustomVaccine: async (id: number) => {
+        await api.delete(`/health/vaccines/${id}`);
+        const list = (await getVaccineTypes()) || [];
+        await saveVaccineTypes(list.filter((v) => v.id !== id));
+        return { ok: true };
+    },
+
     getUpcoming: async () => {
         try {
             const response = await api.get('/health/upcoming');

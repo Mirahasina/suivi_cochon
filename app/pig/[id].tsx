@@ -71,7 +71,7 @@ export default function PigDetailScreen() {
                     healthService.getVaccineTypes(),
                 ]);
                 setVaccineSuggestions(suggestions);
-                setVaccineTypes(types);
+                setVaccineTypes(types.filter((t) => t.isEnabled !== false));
             } catch {
                 setVaccineSuggestions([]);
             }

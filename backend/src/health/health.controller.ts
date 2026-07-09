@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
 import { HealthService } from './health.service';
 
 import { BIOSECURITY_PPA } from './vaccine-schedule';
@@ -40,6 +40,31 @@ export class HealthController {
     @Get('health/pig/:pigId')
     getPigVaccinations(@Param('pigId', ParseIntPipe) pigId: number) {
         return this.healthService.getPigVaccinations(pigId);
+    }
+
+    @Post('health/vaccines')
+    createVaccineType(
+        @Body()
+        body: {
+            name: string;
+            defaultRecallDays: number;
+            target?: string;
+            injectionRoute?: string;
+            description?: string;
+            timingNote?: string;
+        },
+    ) {
+        return this.healthService.createVaccineType(body);
+    }
+
+    @Patch('health/vaccines/:id/enabled')
+    setVaccineEnabled(@Param('id', ParseIntPipe) id: number, @Body('isEnabled') isEnabled: boolean) {
+        return this.healthService.setVaccineEnabled(id, isEnabled);
+    }
+
+    @Delete('health/vaccines/:id')
+    deleteCustomVaccine(@Param('id', ParseIntPipe) id: number) {
+        return this.healthService.deleteCustomVaccine(id);
     }
 
     @Post('health/record')

@@ -58,8 +58,9 @@ export class SeedService implements OnModuleInit {
                 injectionRoute: vaccine.injectionRoute,
                 injectionSite: vaccine.injectionSite,
                 timingNote: vaccine.timingNote,
+                isMandatory: vaccine.isMandatory ?? false,
             };
-            if (!existing) await this.vaccineRepository.save(data);
+            if (!existing) await this.vaccineRepository.save({ ...data, isEnabled: true, isCustom: false });
             else await this.vaccineRepository.update(existing.id, data);
         }
         this.logger.log(`Vaccine catalog ready (${VACCINE_CATALOG.length} vaccins)`);

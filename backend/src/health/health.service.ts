@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThanOrEqual } from 'typeorm';
 import { Vaccination } from '../entities/vaccination.entity';
@@ -80,7 +80,52 @@ export class HealthService {
     }
 
     async getVaccineTypes() {
-        return this.vaccineTypeRepository.find({ order: { target: 'ASC', name: 'ASC' } });
+        return this.vaccineTypeRepository.find({ order: { isCustom: 'ASC', target: 'ASC', name: 'ASC' } });
+    }
+
+    async createVaccineType(data: {
+        name: string;
+        defaultRecallDays: number;
+        target?: VaccineType['target'];
+        injectionRoute?: string;
+        description?: string;
+        timingNote?: string;
+    }) {
+        const existing = await this.vaccineTypeRepository.findOneBy({ name: data.name });
+        if (existing) throw new BadRequestException('Un vaccin avec ce nom existe déjà');
+        return this.vaccineTypeRepository.save(
+            this.vaccineTypeRepository.create({
+                name: data.name.trim(),
+                description: data.description,
+                defaultRecallDays: data.defaultRecallDays,
+                target: data.target || 'ALL',
+                injectionRoute: data.injectionRoute || 'IM',
+                injectionSite: 'Selon produit',
+                timingNote: data.timingNote || 'Rappel personnalisé',
+                isMandatory: false,
+                isEnabled: true,
+                isCustom: true,
+            }),
+        );
+    }
+
+    async setVaccineEnabled(id: number, isEnabled: boolean) {
+        const vt = await this.vaccineTypeRepository.findOneBy({ id });
+        if (!vt) throw new NotFoundException('Vaccin introuvable');
+        await this.vaccineTypeRepository.update(id, { isEnabled });
+        return this.vaccineTypeRepository.findOneBy({ id });
+    }
+
+    async deleteCustomVaccine(id: number) {
+        const vt = await this.vaccineTypeRepository.findOneBy({ id });
+        if (!vt) throw new NotFoundException('Vaccin introuvable');
+        if (!vt.isCustom) throw new BadRequestException('Seuls les vaccins personnalisés peuvent être supprimés');
+        await this.vaccineTypeRepository.delete(id);
+        return { ok: true };
+    }
+
+    private enabledTypes(types: VaccineType[]) {
+        return types.filter((v) => v.isEnabled !== false);
     }
 
     async getPigVaccinations(pigId: number) {
@@ -150,7 +195,7 @@ export class HealthService {
 
     private async computeSuggestions(pig: Pig): Promise<VaccineSuggestion[]> {
         const doneTypeIds = new Set((pig.vaccinations || []).map((v) => v.vaccineType.id));
-        const vaccineTypes = await this.vaccineTypeRepository.find();
+        const vaccineTypes = this.enabledTypes(await this.vaccineTypeRepository.find());
         const suggestions: VaccineSuggestion[] = [];
 
         // Planning porcelets / jeunes (tous sauf truies gestantes avec planning spécifique)

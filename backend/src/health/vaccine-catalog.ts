@@ -22,6 +22,7 @@ export interface VaccineCatalogEntry {
     injectionRoute: InjectionRoute;
     injectionSite: string;
     timingNote: string;
+    isMandatory?: boolean;
 }
 
 export const VACCINE_CATALOG: VaccineCatalogEntry[] = [
@@ -34,6 +35,7 @@ export const VACCINE_CATALOG: VaccineCatalogEntry[] = [
         injectionRoute: 'IM',
         injectionSite: 'Muscle du cou (latéral) ou cuisse',
         timingNote: 'Jour 1 à 3 après naissance',
+        isMandatory: true,
     },
     {
         name: 'Fer (Orale)',
@@ -43,6 +45,7 @@ export const VACCINE_CATALOG: VaccineCatalogEntry[] = [
         injectionRoute: 'ORAL',
         injectionSite: 'Gouttes sur la langue ou dans le lait',
         timingNote: 'Jour 1 à 3 après naissance',
+        isMandatory: false,
     },
     {
         name: 'Vitamines AD3E',
@@ -52,6 +55,7 @@ export const VACCINE_CATALOG: VaccineCatalogEntry[] = [
         injectionRoute: 'IM',
         injectionSite: 'Muscle du cou (derrière l\'oreille)',
         timingNote: 'Semaine 1 (7 jours)',
+        isMandatory: false,
     },
     {
         name: 'Vitamine B12',
@@ -61,6 +65,7 @@ export const VACCINE_CATALOG: VaccineCatalogEntry[] = [
         injectionRoute: 'IM',
         injectionSite: 'Muscle du cou',
         timingNote: 'Semaine 2 (14 jours)',
+        isMandatory: false,
     },
     {
         name: 'Colibacillose (E. coli)',
@@ -70,6 +75,7 @@ export const VACCINE_CATALOG: VaccineCatalogEntry[] = [
         injectionRoute: 'ORAL',
         injectionSite: 'Orale ou IM cou selon produit',
         timingNote: 'Semaine 3 (21 jours) — ou dès J3 selon protocole',
+        isMandatory: true,
     },
     {
         name: 'Déparasitage (Interne)',
@@ -79,6 +85,7 @@ export const VACCINE_CATALOG: VaccineCatalogEntry[] = [
         injectionRoute: 'IN_FEED',
         injectionSite: 'Mélangé dans l\'aliment ou oral direct',
         timingNote: '6 semaines — renouveler tous les 3-4 mois',
+        isMandatory: true,
     },
     {
         name: 'Déparasitage (Externe)',
@@ -88,6 +95,7 @@ export const VACCINE_CATALOG: VaccineCatalogEntry[] = [
         injectionRoute: 'POUR_ON',
         injectionSite: 'Ligne du dos (pour-on) ou spray sur la peau',
         timingNote: '6 semaines — répéter si infestation',
+        isMandatory: false,
     },
     {
         name: 'Circovirus (PCV2)',
@@ -97,6 +105,7 @@ export const VACCINE_CATALOG: VaccineCatalogEntry[] = [
         injectionRoute: 'IM',
         injectionSite: 'Muscle du cou',
         timingNote: '7 semaines (49 jours)',
+        isMandatory: true,
     },
     {
         name: 'Mycoplasme (1ère dose)',
@@ -106,6 +115,7 @@ export const VACCINE_CATALOG: VaccineCatalogEntry[] = [
         injectionRoute: 'IM',
         injectionSite: 'Muscle du cou (derrière l\'oreille)',
         timingNote: '8 semaines — rappel 3 semaines après',
+        isMandatory: true,
     },
     {
         name: 'Mycoplasme (Rappel)',
@@ -115,6 +125,7 @@ export const VACCINE_CATALOG: VaccineCatalogEntry[] = [
         injectionRoute: 'IM',
         injectionSite: 'Muscle du cou',
         timingNote: '11 semaines (21 jours après 1ère dose)',
+        isMandatory: true,
     },
     {
         name: 'Rouget + Parvo',
@@ -124,6 +135,7 @@ export const VACCINE_CATALOG: VaccineCatalogEntry[] = [
         injectionRoute: 'IM',
         injectionSite: 'Muscle du cou',
         timingNote: '9 semaines (63 jours)',
+        isMandatory: true,
     },
     {
         name: 'Peste Porcine (Fièvre Porcine)',
@@ -133,6 +145,7 @@ export const VACCINE_CATALOG: VaccineCatalogEntry[] = [
         injectionRoute: 'IM',
         injectionSite: 'Muscle du cou',
         timingNote: '6 mois puis rappel annuel',
+        isMandatory: true,
     },
     {
         name: 'PRRS (Pneumonie Reproductrice)',
@@ -142,6 +155,7 @@ export const VACCINE_CATALOG: VaccineCatalogEntry[] = [
         injectionRoute: 'IM',
         injectionSite: 'Muscle du cou',
         timingNote: '8-10 semaines selon protocole vétérinaire',
+        isMandatory: false,
     },
     {
         name: 'Rhinite Atrophique',
@@ -151,6 +165,7 @@ export const VACCINE_CATALOG: VaccineCatalogEntry[] = [
         injectionRoute: 'IM',
         injectionSite: 'Muscle du cou',
         timingNote: '10-12 semaines',
+        isMandatory: false,
     },
     {
         name: 'Pastérelloze',
@@ -160,6 +175,7 @@ export const VACCINE_CATALOG: VaccineCatalogEntry[] = [
         injectionRoute: 'IM',
         injectionSite: 'Muscle du cou',
         timingNote: '8 semaines',
+        isMandatory: false,
     },
 
     // ─── TRUIES (avant mise-bas / reproduction) ──────────────
