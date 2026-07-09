@@ -60,7 +60,7 @@ export default function SettingsScreen() {
     const handleSync = async () => {
         setSyncing(true);
         try {
-            const result = await syncAll();
+            const result = await syncAll(queryClient);
             if (!result.online) alert('Serveur inaccessible.');
             else if (result.synced > 0) {
                 alert(`${result.synced} action(s) synchronisée(s) !`);
@@ -138,7 +138,7 @@ export default function SettingsScreen() {
         <ScrollView className="flex-1 bg-background">
             <View className="p-8 bg-primary rounded-b-[35px] mb-2.5">
                 <Text className="text-secondary text-[28px] font-bold">Paramètres</Text>
-                <Text className="text-white opacity-80 text-[14px]">Prix, région, sync et import</Text>
+                    <Text className="text-white opacity-80 text-[14px]">Prix, région, mode hors ligne</Text>
             </View>
 
             <View className="p-5 gap-5">
@@ -148,6 +148,9 @@ export default function SettingsScreen() {
                         <View className={`w-3 h-3 rounded-full ${online ? 'bg-success' : 'bg-danger'}`} />
                         <Text className="text-primary font-bold">{online ? 'En ligne' : 'Hors ligne'}</Text>
                     </View>
+                    <Text className="text-[11px] text-text opacity-50 mb-3">
+                        Fonctionne sans réseau. Sync automatique dès que la connexion revient.
+                    </Text>
                     {queueLength > 0 && (
                         <Text className="text-secondary text-[13px] mb-3">{queueLength} action(s) en attente</Text>
                     )}

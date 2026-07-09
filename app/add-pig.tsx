@@ -15,8 +15,12 @@ export default function AddPigScreen() {
     const [name, setName] = useState('');
     const [breed, setBreed] = useState('Local (Gasy)');
     const [gender, setGender] = useState<'MALE' | 'FEMALE'>('FEMALE');
-    const [birthDate, setBirthDate] = useState(new Date());
     const [purchaseDate, setPurchaseDate] = useState<Date | null>(new Date());
+    const [birthDate, setBirthDate] = useState(() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 70);
+        return d;
+    });
     const [showBirthPicker, setShowBirthPicker] = useState(false);
     const [showPurchasePicker, setShowPurchasePicker] = useState(false);
     const [purchasePrice, setPurchasePrice] = useState('');
@@ -46,9 +50,12 @@ export default function AddPigScreen() {
             for (let i = 0; i < count; i++) {
                 const finalName = count > 1 ? `${name || 'Porcelet'} #${i + 1}` : name;
 
-                const effectiveBirthDate = origin === 'FARM_BORN'
-                    ? birthDate
-                    : (purchaseDate || new Date());
+                const effectiveBirthDate = birthDate;
+
+                if (origin === 'PURCHASED' && !initialWeight) {
+                    setLoading(false);
+                    return alert('Indiquez le poids à l\'achat (environ 10 à 25 kg)');
+                }
 
                 await pigService.create({
                     name: finalName,
@@ -181,37 +188,44 @@ export default function AddPigScreen() {
             </View>
 
             <View className="flex-row gap-4 mb-5">
-                {origin === 'FARM_BORN' ? (
+                <View className="flex-1">
+                    <Text className="text-[12px] text-primary mb-2 font-bold opacity-70">
+                        {origin === 'FARM_BORN' ? 'Date de naissance' : 'Naissance estimée'}
+                    </Text>
+                    <TouchableOpacity
+                        className="bg-white border border-border rounded-[15px] p-4"
+                        onPress={() => setShowBirthPicker(true)}
+                    >
+                        <Text className="text-base text-text">{birthDate.toLocaleDateString()}</Text>
+                    </TouchableOpacity>
+                    {origin === 'PURCHASED' && (
+                        <Text className="text-[11px] text-text opacity-50 mt-1">
+                            Âge réel du cochon (souvent 2 à 2,5 mois à l&apos;achat).
+                        </Text>
+                    )}
+                    {showBirthPicker && (
+                        <DateTimePicker
+                            value={birthDate}
+                            mode="date"
+                            display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                            onChange={(e, d) => {
+                                setShowBirthPicker(false);
+                                if (d) setBirthDate(d);
+                            }}
+                            maximumDate={origin === 'PURCHASED' && purchaseDate ? purchaseDate : new Date()}
+                        />
+                    )}
+                </View>
+
+                {origin === 'PURCHASED' && (
                     <View className="flex-1">
-                        <Text className="text-[12px] text-primary mb-2 font-bold opacity-70">Date de Naissance Nominale</Text>
-                        <TouchableOpacity
-                            className="bg-white border border-border rounded-[15px] p-4"
-                            onPress={() => setShowBirthPicker(true)}
-                        >
-                            <Text className="text-base text-text">{birthDate.toLocaleDateString()}</Text>
-                        </TouchableOpacity>
-                        {showBirthPicker && (
-                            <DateTimePicker
-                                value={birthDate}
-                                mode="date"
-                                display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                                onChange={(e, d) => {
-                                    setShowBirthPicker(false);
-                                    if (d) setBirthDate(d);
-                                }}
-                                maximumDate={new Date()}
-                            />
-                        )}
-                    </View>
-                ) : (
-                    <View className="flex-1">
-                        <Text className="text-[12px] text-primary mb-2 font-bold opacity-70">Date d'Achat</Text>
+                        <Text className="text-[12px] text-primary mb-2 font-bold opacity-70">Date d&apos;achat</Text>
                         <TouchableOpacity
                             className="bg-white border border-border rounded-[15px] p-4"
                             onPress={() => setShowPurchasePicker(true)}
                         >
                             <Text className={`text-base ${purchaseDate ? 'text-text' : 'text-[#AAA]'}`}>
-                                {purchaseDate ? purchaseDate.toLocaleDateString() : "Choisir"}
+                                {purchaseDate ? purchaseDate.toLocaleDateString() : 'Choisir'}
                             </Text>
                         </TouchableOpacity>
                         {showPurchasePicker && (
@@ -221,7 +235,14 @@ export default function AddPigScreen() {
                                 display="default"
                                 onChange={(e, d) => {
                                     setShowPurchasePicker(false);
-                                    if (d) setPurchaseDate(d);
+                                    if (d) {
+                                        setPurchaseDate(d);
+                                        setBirthDate(() => {
+                                            const b = new Date(d);
+                                            b.setDate(b.getDate() - 70);
+                                            return b;
+                                        });
+                                    }
                                 }}
                                 maximumDate={new Date()}
                             />
@@ -232,17 +253,21 @@ export default function AddPigScreen() {
 
             <View className="flex-row gap-4">
                 <View className="flex-1 mb-5">
-                    <Text className="text-[12px] text-primary mb-2 font-bold opacity-70">Poids {origin === 'FARM_BORN' ? 'de naissance' : 'Initial'} (kg)</Text>
+                    <Text className="text-[12px] text-primary mb-2 font-bold opacity-70">
+                        {origin === 'FARM_BORN' ? 'Poids de naissance (kg)' : 'Poids à l\'achat (kg)'}
+                    </Text>
                     <TextInput
                         className="bg-white border border-border rounded-[15px] p-4 text-base text-text"
                         value={initialWeight}
                         onChangeText={setInitialWeight}
                         keyboardType="numeric"
-                        placeholder="0"
+                        placeholder={origin === 'PURCHASED' ? '10 - 25' : '0'}
                         placeholderTextColor="#AAA"
                     />
                     <Text className="text-[11px] text-text opacity-50 mt-1">
-                        Optionnel. Le poids et la ration actuels seront calculés automatiquement selon l&apos;âge.
+                        {origin === 'PURCHASED'
+                            ? 'Obligatoire. Le poids actuel sera calculé à partir de ce poids et des semaines depuis l\'achat.'
+                            : 'Optionnel. Le poids actuel sera calculé selon l\'âge.'}
                     </Text>
                 </View>
 

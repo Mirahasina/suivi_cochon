@@ -390,6 +390,16 @@ export default function PigDetailScreen() {
             <View className="px-5 pt-6">
                 <Text className="text-primary text-xl font-semibold mb-4">Performance & croissance ({pig.breed})</Text>
                 <View className="bg-white rounded-[25px] p-6 shadow-xl shadow-primary/10 elevation-4">
+                    {pig.isPurchasedAfterBirth && (
+                        <View className="bg-background p-3 rounded-xl mb-4">
+                            <Text className="text-[12px] text-text opacity-80">
+                                Cochon acheté — calcul depuis l&apos;achat :{' '}
+                                {status?.purchaseWeight ?? pig.purchaseWeight ?? '?'} kg à l&apos;arrivée
+                                {status?.weeksOnFarm != null ? `, ${status.weeksOnFarm} sem. à la ferme` : ''}.
+                                {'\n'}Âge réel : {pig.ageFormatted} (vaccins et reproduction).
+                            </Text>
+                        </View>
+                    )}
                     <View className="flex-row gap-5 mb-5">
                         <View className="flex-1 bg-background p-4 rounded-[15px] items-center">
                             <Text className="text-[12px] text-primary opacity-70">Poids norme</Text>

@@ -100,9 +100,14 @@ export default function HomeScreen() {
           <View className="p-6 bg-primary rounded-b-[30px] mb-4">
             <Text className="text-secondary font-bold text-3xl">Mon élevage</Text>
             <Text className="text-white opacity-80 text-base">{pigs.length} cochons actifs</Text>
-            {isError && (
+            {isError && pigs.length > 0 && (
               <View className="mt-2 bg-danger/20 p-2 rounded-lg">
-                <Text className="text-white font-bold text-xs">Mode hors-ligne (données en cache)</Text>
+                <Text className="text-white font-bold text-xs">Mode hors ligne — données locales</Text>
+              </View>
+            )}
+            {!isError && pigs.some((p) => (p as any)._pendingSync) && (
+              <View className="mt-2 bg-secondary/30 p-2 rounded-lg">
+                <Text className="text-white text-xs">Certaines données seront synchronisées plus tard</Text>
               </View>
             )}
           </View>

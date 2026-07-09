@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { normalizeBreed } from '../common/breeds';
 import { applyGrowthFactors, getGrowthFactors, RaisingPurpose } from '../common/growth-profile';
+import { isPurchasedAfterBirth, projectWeightFromBaseline, getWeeksBetween } from '../common/weight-projection';
 import { Pig } from '../entities/pig.entity';
 import { WeightEntry } from '../entities/weight-entry.entity';
 import { GrowthNorm } from '../entities/growth-norm.entity';
@@ -79,6 +80,42 @@ export class PigsService {
         return this.normRepository.findOne({ where: { ageInWeeks, breed: breedKey } });
     }
 
+    private resolveBaselineWeight(pig: Pig): number | null {
+        if (pig.initialWeight) return Number(pig.initialWeight);
+        if (!pig.purchaseDate || !pig.weightEntries?.length) return null;
+        const purchase = new Date(pig.purchaseDate);
+        const atPurchase = pig.weightEntries.find((e) => this.isSameDay(new Date(e.date), purchase));
+        return atPurchase?.weight ?? null;
+    }
+
+    private async getExpectedWeightForPig(pig: Pig, referenceDate: Date): Promise<number | null> {
+        const bioNorm = await this.getAdjustedNormForPig(pig, referenceDate);
+        if (!bioNorm) return null;
+        if (!isPurchasedAfterBirth(pig)) return bioNorm.expectedWeight;
+
+        const baselineWeight = this.resolveBaselineWeight(pig);
+        if (!baselineWeight) return bioNorm.expectedWeight;
+
+        const normAtPurchase = await this.getAdjustedNormForPig(pig, new Date(pig.purchaseDate!));
+        if (!normAtPurchase) return bioNorm.expectedWeight;
+
+        return projectWeightFromBaseline(
+            baselineWeight,
+            normAtPurchase.expectedWeight,
+            bioNorm.expectedWeight,
+        );
+    }
+
+    private async getStatusNormForPig(pig: Pig, referenceDate: Date) {
+        const bioNorm = await this.getAdjustedNormForPig(pig, referenceDate);
+        if (!bioNorm) return null;
+        const expectedWeight = await this.getExpectedWeightForPig(pig, referenceDate);
+        return {
+            ...bioNorm,
+            expectedWeight: expectedWeight ?? bioNorm.expectedWeight,
+        };
+    }
+
     private async getAdjustedNormForPig(pig: Pig, referenceDate: Date) {
         if (!pig.birthDate) return null;
         const birth = new Date(pig.birthDate);
@@ -102,7 +139,7 @@ export class PigsService {
         const birth = new Date(pig.birthDate);
         const now = new Date();
         const ageInWeeks = this.getAgeInWeeks(birth, now);
-        const currentNorm = await this.getAdjustedNormForPig(pig, now);
+        const currentNorm = await this.getStatusNormForPig(pig, now);
         if (!currentNorm) return;
 
         const feedPricePerKg = await this.getFeedPrice(pig, ageInWeeks);
@@ -117,11 +154,13 @@ export class PigsService {
 
         // Corrige les anciens cochons : poids initial enregistré à la création au lieu de la date de naissance
         const manualEntries = weightEntries.filter((e) => e.isManual);
-        const pigAgeDays = Math.floor((now.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
-        if (manualEntries.length === 1 && pig.createdAt && pigAgeDays > 30) {
+        if (manualEntries.length === 1 && pig.createdAt) {
             const onlyManual = manualEntries[0];
             if (this.isSameDay(new Date(onlyManual.date), new Date(pig.createdAt))) {
-                await this.weightRepository.update(onlyManual.id, { date: birth });
+                const fixDate = isPurchasedAfterBirth(pig) && pig.purchaseDate
+                    ? new Date(pig.purchaseDate)
+                    : birth;
+                await this.weightRepository.update(onlyManual.id, { date: fixDate });
             }
         }
 
@@ -218,9 +257,15 @@ export class PigsService {
         const totalFeedingCost = pig.feedingEntries?.reduce((sum, e) => sum + Number(e.costAriary), 0) || 0;
         const totalInvestment = Number(pig.purchasePrice || 0) + totalFeedingCost;
 
-        const norm = await this.getAdjustedNormForPig(pig, now);
+        const norm = await this.getStatusNormForPig(pig, now);
         const feedPricePerKg = await this.getFeedPrice(pig, ageInWeeks);
         const settings = await this.settingsService.getAll();
+        const purchased = isPurchasedAfterBirth(pig);
+        const purchaseWeight = this.resolveBaselineWeight(pig);
+        const weeksOnFarm =
+            purchased && pig.purchaseDate
+                ? getWeeksBetween(new Date(pig.purchaseDate), now)
+                : null;
 
         const sortedWeights = [...(pig.weightEntries || [])].sort(
             (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
@@ -263,6 +308,9 @@ export class PigsService {
             ...pig,
             ageFormatted: `${ageInWeeks} sem ${ageInDays % 7} j`,
             ageInWeeks,
+            weeksOnFarm,
+            purchaseWeight,
+            isPurchasedAfterBirth: purchased,
             partnerName,
             weightChart,
             normCurve,
@@ -293,6 +341,9 @@ export class PigsService {
                 feedPhase: ageInWeeks <= 4 ? 'démarrage' : ageInWeeks <= 12 ? 'croissance' : 'finition',
                 raisingPurpose: pig.raisingPurpose || 'UNDECIDED',
                 raisingPurposeLabel: this.getRaisingPurposeLabel(pig),
+                weightBasis: purchased ? 'purchase' : 'birth',
+                purchaseWeight,
+                weeksOnFarm,
             },
         };
     }
@@ -323,6 +374,7 @@ export class PigsService {
             birthDate: data.birthDate ? new Date(data.birthDate) : null,
             purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : null,
             purchasePrice: data.purchasePrice ? Number(data.purchasePrice) : null,
+            initialWeight: data.initialWeight ? Number(data.initialWeight) : null,
             batch: batchId ? { id: batchId } : undefined,
         });
 

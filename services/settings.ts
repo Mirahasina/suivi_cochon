@@ -63,9 +63,7 @@ export const settingsService = {
             return response.data;
         } catch (error) {
             if (isNetworkError(error)) {
-                if (data.feedPriceGrowth != null) {
-                    await enqueue({ type: 'UPDATE_FEED_PRICE', payload: { feedPricePerKg: data.feedPriceGrowth } });
-                }
+                await enqueue({ type: 'UPDATE_SETTINGS', payload: data as Record<string, unknown> });
                 return { ...data, queued: true };
             }
             throw error;
