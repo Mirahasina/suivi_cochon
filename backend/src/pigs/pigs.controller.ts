@@ -39,6 +39,14 @@ export class PigsController {
         return this.pigsService.setQuarantine(+id, body.isQuarantined, body.reason);
     }
 
+    @Patch(':id/raising-purpose')
+    setRaisingPurpose(
+        @Param('id') id: string,
+        @Body('purpose') purpose: 'UNDECIDED' | 'FATTENING' | 'BREEDING',
+    ) {
+        return this.pigsService.setRaisingPurpose(+id, purpose);
+    }
+
     @Delete(':id')
     remove(@Param('id') id: string) {
         return this.pigsService.remove(+id);

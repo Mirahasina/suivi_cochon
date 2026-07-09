@@ -110,9 +110,9 @@ export default function HealthScreen() {
             {biosecurity && showPpa && (
               <View className="bg-[#FFEBEE] rounded-[20px] p-4 mb-5 border-2 border-danger">
                 <TouchableOpacity onPress={() => setShowPpa(false)} className="absolute top-2 right-3">
-                  <Text className="text-danger font-bold">✕</Text>
+                  <Text className="text-danger font-bold">X</Text>
                 </TouchableOpacity>
-                <Text className="text-danger font-bold text-base mb-1">🚨 {biosecurity.title}</Text>
+                <Text className="text-danger font-bold text-base mb-1">{biosecurity.title}</Text>
                 <Text className="text-[12px] text-text mb-3">{biosecurity.alert}</Text>
                 <Text className="text-[12px] font-bold text-text mb-1">Signes à surveiller :</Text>
                 {biosecurity.symptoms.slice(0, 3).map((s, i) => (
@@ -134,14 +134,14 @@ export default function HealthScreen() {
                       <View className="flex-1">
                         <Text className="font-bold text-text">{s.vaccineName}</Text>
                         <TouchableOpacity onPress={() => router.push(`/pig/${s.pigId}`)}>
-                          <Text className="text-primary text-[12px] mt-0.5">🐷 {s.pigName} ({s.ageInDays} jours)</Text>
+                          <Text className="text-primary text-[12px] mt-0.5">{s.pigName} ({s.ageInDays} jours)</Text>
                         </TouchableOpacity>
                         <Text className="text-[11px] text-text opacity-60 mt-1">{s.label}</Text>
                         {s.injectionRouteLabel && (
-                          <Text className="text-[10px] text-primary">💉 {s.injectionRouteLabel} — {s.injectionSite}</Text>
+                          <Text className="text-[10px] text-primary">{s.injectionRouteLabel} — {s.injectionSite}</Text>
                         )}
                         <Text className="text-[11px] font-bold mt-1" style={{ color: statusColor(s.status) }}>
-                          {s.status === 'overdue' ? '⚠️ En retard' : s.status === 'due' ? 'À faire' : 'Bientôt'} — {new Date(s.scheduledDate).toLocaleDateString()}
+                          {s.status === 'overdue' ? 'En retard' : s.status === 'due' ? 'À faire' : 'Bientôt'} — {new Date(s.scheduledDate).toLocaleDateString()}
                         </Text>
                       </View>
                       <TouchableOpacity
@@ -149,7 +149,7 @@ export default function HealthScreen() {
                         onPress={() => handleMarkDone(s)}
                         disabled={recordingId === `${s.pigId}-${s.vaccineTypeId}`}
                       >
-                        <Text className="text-white text-[11px] font-bold">Fait ✓</Text>
+                        <Text className="text-white text-[11px] font-bold">Fait</Text>
                       </TouchableOpacity>
                     </View>
                   </View>

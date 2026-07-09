@@ -8,6 +8,7 @@ import { Colors } from '../../constants/theme';
 import { Pig, pigService, Piglet, pigletService, healthService, VaccineSuggestion, VaccineType } from '../../services/api';
 import { INJECTION_ROUTES, ANIMAL_TARGETS } from '../../constants/vaccines';
 import { settingsService } from '../../services/settings';
+import { RAISING_PURPOSE_LABELS, RaisingPurpose } from '../../constants/raising-purpose';
 import {
     calculateSaleTotal,
     formatAgeLabel,
@@ -217,6 +218,17 @@ export default function PigDetailScreen() {
         );
     };
 
+    const handleSetRaisingPurpose = async (purpose: RaisingPurpose) => {
+        try {
+            await pigService.setRaisingPurpose(Number(id), purpose);
+            queryClient.invalidateQueries({ queryKey: ['pig', Number(id)] });
+            queryClient.invalidateQueries({ queryKey: ['pigs'] });
+            fetchPig();
+        } catch {
+            alert('Erreur lors de la mise à jour');
+        }
+    };
+
     const handleDelete = async () => {
         try {
             await pigService.delete(Number(id));
@@ -318,7 +330,7 @@ export default function PigDetailScreen() {
                 )}
                 {pig.isQuarantined && (
                     <View className="mt-4 bg-danger/90 p-3 rounded-xl">
-                        <Text className="text-white font-bold">🚨 QUARANTAINE — {pig.quarantineReason || 'Suspicion sanitaire'}</Text>
+                        <Text className="text-white font-bold">QUARANTAINE — {pig.quarantineReason || 'Suspicion sanitaire'}</Text>
                     </View>
                 )}
             </View>
@@ -337,6 +349,45 @@ export default function PigDetailScreen() {
             )}
 
             <View className="px-5 pt-6">
+                <Text className="text-primary text-xl font-semibold mb-4">Destination de l&apos;élevage</Text>
+                <View className="bg-white rounded-[25px] p-6 shadow-xl shadow-primary/10 elevation-4 mb-2">
+                    <Text className="text-[12px] text-text opacity-70 mb-3">
+                        À la naissance, tous les porcs sont « pas encore décidés ». Plus tard, on choisit
+                        l&apos;engraissement (manatavy, pour la viande) ou la reproduction (truie / verrat).
+                        Le poids et la ration s&apos;ajustent selon ce choix et le sexe.
+                    </Text>
+                    <Text className="text-primary font-bold mb-3">
+                        Actuel : {status?.raisingPurposeLabel || RAISING_PURPOSE_LABELS.UNDECIDED}
+                    </Text>
+                    {pig.status === 'ACTIVE' && (
+                        <View className="gap-2">
+                            {(['UNDECIDED', 'FATTENING', 'BREEDING'] as RaisingPurpose[]).map((purpose) => (
+                                <TouchableOpacity
+                                    key={purpose}
+                                    className={`p-3 rounded-xl border ${
+                                        (status?.raisingPurpose || pig.raisingPurpose || 'UNDECIDED') === purpose
+                                            ? 'bg-primary border-primary'
+                                            : 'border-border'
+                                    }`}
+                                    onPress={() => handleSetRaisingPurpose(purpose)}
+                                >
+                                    <Text
+                                        className={`font-bold text-[13px] ${
+                                            (status?.raisingPurpose || pig.raisingPurpose || 'UNDECIDED') === purpose
+                                                ? 'text-white'
+                                                : 'text-text'
+                                        }`}
+                                    >
+                                        {RAISING_PURPOSE_LABELS[purpose]}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
+                </View>
+            </View>
+
+            <View className="px-5 pt-6">
                 <Text className="text-primary text-xl font-semibold mb-4">Performance & croissance ({pig.breed})</Text>
                 <View className="bg-white rounded-[25px] p-6 shadow-xl shadow-primary/10 elevation-4">
                     <View className="flex-row gap-5 mb-5">
@@ -352,11 +403,11 @@ export default function PigDetailScreen() {
 
                     {status?.isUnderweight ? (
                         <View className="bg-[#FFF0F0] p-3 rounded-xl mb-5">
-                            <Text className="text-danger font-bold text-center">⚠️ croissance lente par rapport aux normes.</Text>
+                            <Text className="text-danger font-bold text-center">Croissance lente par rapport aux normes.</Text>
                         </View>
                     ) : (
                         <View className="bg-[#EFFFF4] p-3 rounded-xl mb-5">
-                            <Text className="text-success font-bold text-center">✓ Poids conforme aux normes {pig.breed} ({pig.ageFormatted}).</Text>
+                            <Text className="text-success font-bold text-center">Poids conforme aux normes {pig.breed} ({pig.ageFormatted}).</Text>
                         </View>
                     )}
 
@@ -403,7 +454,7 @@ export default function PigDetailScreen() {
 
                 {vaccineSuggestions.length > 0 && (
                     <View className="bg-[#FFF8E7] rounded-[20px] p-4 mb-4 border border-secondary/30">
-                        <Text className="text-primary font-bold mb-2">📅 Planning automatique</Text>
+                        <Text className="text-primary font-bold mb-2">Planning automatique</Text>
                         {vaccineSuggestions.map((s) => (
                             <View key={`${s.vaccineTypeId}-${s.dueAtDays}`} className="flex-row items-center py-2 border-b border-secondary/10">
                                 <View className="flex-1">
@@ -411,11 +462,11 @@ export default function PigDetailScreen() {
                                     <Text className="text-[11px] text-text opacity-60">{s.label}</Text>
                                     {s.injectionRouteLabel && (
                                         <Text className="text-[10px] text-primary mt-0.5">
-                                            💉 {s.injectionRouteLabel} — {s.injectionSite}
+                                            {s.injectionRouteLabel} — {s.injectionSite}
                                         </Text>
                                     )}
                                     <Text className={`text-[11px] font-bold mt-0.5 ${s.status === 'overdue' ? 'text-danger' : 'text-secondary'}`}>
-                                        {s.status === 'overdue' ? '⚠️ En retard' : s.status === 'due' ? 'À faire maintenant' : 'Bientôt'} — prévu le {new Date(s.scheduledDate).toLocaleDateString()}
+                                        {s.status === 'overdue' ? 'En retard' : s.status === 'due' ? 'À faire maintenant' : 'Bientôt'} — prévu le {new Date(s.scheduledDate).toLocaleDateString()}
                                     </Text>
                                 </View>
                                 {pig.status === 'ACTIVE' && (
@@ -424,7 +475,7 @@ export default function PigDetailScreen() {
                                         onPress={() => handleRecordVaccine(s.vaccineTypeId, `Planning: ${s.label}`)}
                                         disabled={recordingVaccine}
                                     >
-                                        <Text className="text-white text-[11px] font-bold">Fait ✓</Text>
+                                        <Text className="text-white text-[11px] font-bold">Fait</Text>
                                     </TouchableOpacity>
                                 )}
                             </View>
@@ -468,10 +519,10 @@ export default function PigDetailScreen() {
                                 <Text className="text-[12px] font-bold text-primary">{selectedVaccine.name}</Text>
                                 <Text className="text-[11px] text-text opacity-70">{selectedVaccine.description}</Text>
                                 <Text className="text-[11px] text-secondary mt-1">
-                                    💉 {INJECTION_ROUTES[selectedVaccine.injectionRoute] || selectedVaccine.injectionRoute}
+                                    {INJECTION_ROUTES[selectedVaccine.injectionRoute] || selectedVaccine.injectionRoute}
                                 </Text>
-                                <Text className="text-[11px] text-text opacity-60">📍 {selectedVaccine.injectionSite}</Text>
-                                <Text className="text-[11px] text-text opacity-60">🕐 {selectedVaccine.timingNote}</Text>
+                                <Text className="text-[11px] text-text opacity-60">Site : {selectedVaccine.injectionSite}</Text>
+                                <Text className="text-[11px] text-text opacity-60">Calendrier : {selectedVaccine.timingNote}</Text>
                                 <Text className="text-[10px] text-primary opacity-50">Cible: {ANIMAL_TARGETS[selectedVaccine.target] || selectedVaccine.target}</Text>
                             </View>
                         )}
@@ -560,14 +611,14 @@ export default function PigDetailScreen() {
                     </View>
                     <Text className="text-[12px] text-center mt-2 text-text opacity-70 italic">
                         {(financials?.actualMonthlyFeedKg || 0) > (financials?.theoreticalMonthlyFeedKg || 0)
-                            ? "Suralimentation détectée ⚠️"
+                            ? "Suralimentation détectée"
                             : "Alimentation conforme (calculée automatiquement jour par jour)"}
                     </Text>
 
                     <View className="h-[1px] bg-border my-5" />
 
                     <Text className="text-[12px] font-bold mb-2.5 text-primary">
-                        Alimentation aujourd'hui {status?.isFeedManual ? '(corrigée)' : `(auto ${status?.feedPhase || ''}: ${status?.recommendedFeed} kg/j)`}
+                        Alimentation aujourd&apos;hui {status?.isFeedManual ? '(corrigée)' : `(auto ${status?.feedPhase || ''}: ${status?.recommendedFeed} kg/j)`}
                     </Text>
                     <View className="flex-row gap-2.5 items-center">
                         <TextInput

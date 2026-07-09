@@ -34,6 +34,13 @@ export class Pig {
     @Column({ default: false })
     isCastrated: boolean;
 
+    /** UNDECIDED = pas encore choisi, FATTENING = manatavy/viande, BREEDING = reproducteur */
+    @Column({ default: 'UNDECIDED' })
+    raisingPurpose: 'UNDECIDED' | 'FATTENING' | 'BREEDING';
+
+    @Column({ nullable: true })
+    raisingPurposeDate: Date;
+
     @Column({ nullable: true })
     castrationDate: Date;
 

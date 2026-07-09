@@ -38,8 +38,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="batches"
         options={{
-          title: 'Lots',
-          tabBarIcon: ({ color }) => <Ionicons name="grid" size={24} color={color} />,
+          href: null,
         }}
       />
       <Tabs.Screen

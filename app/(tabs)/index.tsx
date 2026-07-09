@@ -82,7 +82,7 @@ export default function HomeScreen() {
       </View>
       {item.currentStatus?.isUnderweight && (
         <View className="mt-4 bg-[#FFF0F0] p-2.5 rounded-xl border-l-4 border-l-danger">
-          <Text className="text-danger font-bold text-[13px]">⚠️ croissance à surveiller</Text>
+          <Text className="text-danger font-bold text-[13px]">Croissance à surveiller</Text>
         </View>
       )}
     </TouchableOpacity>
@@ -102,7 +102,7 @@ export default function HomeScreen() {
             <Text className="text-white opacity-80 text-base">{pigs.length} cochons actifs</Text>
             {isError && (
               <View className="mt-2 bg-danger/20 p-2 rounded-lg">
-                <Text className="text-white font-bold text-xs">⚠️ Mode Hors-Ligne (Données en cache)</Text>
+                <Text className="text-white font-bold text-xs">Mode hors-ligne (données en cache)</Text>
               </View>
             )}
           </View>

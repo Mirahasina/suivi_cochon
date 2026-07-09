@@ -80,6 +80,9 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="pig" options={{ headerShown: false }} />
+          <Stack.Screen name="add-pig" options={{ title: 'Ajouter un cochon' }} />
+          <Stack.Screen name="farrowing/record" options={{ title: 'Mise bas' }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
         <StatusBar style="auto" />

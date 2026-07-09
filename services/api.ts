@@ -64,6 +64,8 @@ export interface Pig {
     initialWeight?: number;
     isCastrated: boolean;
     castrationDate?: string;
+    raisingPurpose?: 'UNDECIDED' | 'FATTENING' | 'BREEDING';
+    raisingPurposeDate?: string;
     matingDate?: string;
     partnerId?: number;
     partnerName?: string;
@@ -94,6 +96,8 @@ export interface Pig {
         isFeedManual: boolean;
         isUnderweight: boolean;
         feedPhase?: string;
+        raisingPurpose?: 'UNDECIDED' | 'FATTENING' | 'BREEDING';
+        raisingPurposeLabel?: string;
     };
     financials: {
         monthlyFeedingCost: number;
@@ -201,6 +205,11 @@ export const pigService = {
 
     setQuarantine: async (id: number, isQuarantined: boolean, reason?: string) => {
         const response = await api.post(`/pigs/${id}/quarantine`, { isQuarantined, reason });
+        return response.data;
+    },
+
+    setRaisingPurpose: async (id: number, purpose: 'UNDECIDED' | 'FATTENING' | 'BREEDING') => {
+        const response = await api.patch(`/pigs/${id}/raising-purpose`, { purpose });
         return response.data;
     },
 };

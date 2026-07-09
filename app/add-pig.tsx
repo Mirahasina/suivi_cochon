@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TextInput, TouchableOpacity, ScrollView, View, Text, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { pigService, healthService, Pig, batchService, Batch } from '../services/api';
+import { pigService, healthService, Pig } from '../services/api';
 import { PIG_BREEDS } from '../constants/breeds';
 import { Colors, Typography } from '../constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -27,15 +27,12 @@ export default function AddPigScreen() {
     const [loading, setLoading] = useState(false);
     const [vaccineTypes, setVaccineTypes] = useState<any[]>([]);
     const [selectedVaccines, setSelectedVaccines] = useState<number[]>([]);
-    const [batches, setBatches] = useState<Batch[]>([]);
-    const [batchId, setBatchId] = useState<number | null>(null);
 
     React.useEffect(() => {
         healthService.getVaccineTypes().then(setVaccineTypes);
         pigService.getAll().then(pigs => {
             setFemales(pigs.filter(p => p.gender === 'FEMALE'));
         });
-        batchService.getAll().then(setBatches).catch(() => {});
     }, []);
 
     const breeds = [...PIG_BREEDS];
@@ -64,7 +61,6 @@ export default function AddPigScreen() {
                     isCastrated: false,
                     motherId: origin === 'FARM_BORN' ? motherId : undefined,
                     initialVaccineTypeIds: selectedVaccines,
-                    batchId: batchId ?? undefined,
                 } as any);
             }
 
@@ -166,29 +162,6 @@ export default function AddPigScreen() {
                 </ScrollView>
             </View>
 
-            {batches.length > 0 && (
-                <View className="mb-5">
-                    <Text className="text-[12px] text-primary mb-2 font-bold opacity-70">Lot (optionnel)</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        <TouchableOpacity
-                            className={`py-2 px-4 rounded-xl border mr-2 ${!batchId ? 'bg-primary border-primary' : 'bg-white border-border'}`}
-                            onPress={() => setBatchId(null)}
-                        >
-                            <Text className={`text-[12px] font-bold ${!batchId ? 'text-white' : 'text-text'}`}>Aucun</Text>
-                        </TouchableOpacity>
-                        {batches.filter(b => b.status === 'ACTIVE').map((b) => (
-                            <TouchableOpacity
-                                key={b.id}
-                                className={`py-2 px-4 rounded-xl border mr-2 ${batchId === b.id ? 'bg-primary border-primary' : 'bg-white border-border'}`}
-                                onPress={() => setBatchId(b.id)}
-                            >
-                                <Text className={`text-[12px] font-bold ${batchId === b.id ? 'text-white' : 'text-text'}`}>{b.name}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-                </View>
-            )}
-
             <View className="mb-5">
                 <Text className="text-[12px] text-primary mb-2 font-bold opacity-70">Sexe</Text>
                 <View className="flex-row gap-2.5">
@@ -268,6 +241,9 @@ export default function AddPigScreen() {
                         placeholder="0"
                         placeholderTextColor="#AAA"
                     />
+                    <Text className="text-[11px] text-text opacity-50 mt-1">
+                        Optionnel. Le poids et la ration actuels seront calculés automatiquement selon l&apos;âge.
+                    </Text>
                 </View>
 
                 {origin === 'PURCHASED' && (

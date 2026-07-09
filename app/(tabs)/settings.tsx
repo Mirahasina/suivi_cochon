@@ -228,7 +228,7 @@ export default function SettingsScreen() {
                         >
                             <Text className="font-bold text-text">{r.name}</Text>
                             <Text className="text-[12px] text-primary">{r.costPerKg.toLocaleString()} Ar/kg</Text>
-                            {r.isActive && <Text className="text-[11px] text-success font-bold">✓ Actif</Text>}
+                            {r.isActive && <Text className="text-[11px] text-success font-bold">Actif</Text>}
                         </TouchableOpacity>
                     ))}
                     {feedRecipes.length === 0 && (
