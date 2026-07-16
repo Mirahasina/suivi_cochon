@@ -19,6 +19,7 @@ const DEFAULTS = {
     pigletLivePriceWeek5_8: DEFAULT_MARKET_PRICES.pigletLivePriceWeek5_8,
     pigletLivePriceWeek9_12: DEFAULT_MARKET_PRICES.pigletLivePriceWeek9_12,
     pigletLivePriceWeek13Plus: DEFAULT_MARKET_PRICES.pigletLivePriceWeek13Plus,
+    carcassYieldPercent: 72,
     simpleFinanceMode: 'false',
     farmRegion: 'Antananarivo',
 };
@@ -88,6 +89,7 @@ export class SettingsService {
             livePigSalePricePerKg: market.liveAdultPricePerKg,
             carcassSalePricePerKg: market.carcassSalePricePerKg,
             ...market,
+            carcassYieldPercent: Number(await this.get('carcassYieldPercent')),
             simpleFinanceMode: (await this.get('simpleFinanceMode')) === 'true',
             farmRegion: await this.get('farmRegion'),
         };
@@ -104,6 +106,7 @@ export class SettingsService {
             pigletLivePriceWeek5_8: data.pigletLivePriceWeek5_8 != null ? String(data.pigletLivePriceWeek5_8) : undefined,
             pigletLivePriceWeek9_12: data.pigletLivePriceWeek9_12 != null ? String(data.pigletLivePriceWeek9_12) : undefined,
             pigletLivePriceWeek13Plus: data.pigletLivePriceWeek13Plus != null ? String(data.pigletLivePriceWeek13Plus) : undefined,
+            carcassYieldPercent: data.carcassYieldPercent != null ? String(data.carcassYieldPercent) : undefined,
             simpleFinanceMode: data.simpleFinanceMode != null ? String(data.simpleFinanceMode) : undefined,
             farmRegion: data.farmRegion != null ? String(data.farmRegion) : undefined,
         };

@@ -36,6 +36,11 @@ export function getLivePricePerKg(ageInDays: number, prices: MarketPrices, isPig
     return prices.pigletLivePriceWeek13Plus;
 }
 
+export function estimateCarcassKg(liveKg: number, yieldPercent: number): number {
+    const pct = Math.max(0, Math.min(100, yieldPercent));
+    return Math.round(liveKg * (pct / 100) * 100) / 100;
+}
+
 export function calculateSaleTotal(
     mode: SaleMode,
     weightKg: number,

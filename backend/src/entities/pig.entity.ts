@@ -84,6 +84,10 @@ export class Pig {
     @Column({ type: 'float', nullable: true })
     saleWeightKg: number;
 
+    /** Poids vif saisi lors d'une vente carcasse (avant application du rendement) */
+    @Column({ type: 'float', nullable: true })
+    saleLiveWeightKg: number;
+
     @Column({ type: 'float', nullable: true })
     salePricePerKg: number;
 

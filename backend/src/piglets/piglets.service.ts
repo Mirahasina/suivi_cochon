@@ -1,8 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { estimateCarcassKg } from '../common/market-pricing';
 import { Pig } from '../entities/pig.entity';
 import { Piglet } from '../entities/piglet.entity';
+import { SettingsService } from '../settings/settings.service';
 import { RecordFarrowingDto } from './dto/record-farrowing.dto';
 
 @Injectable()
@@ -12,6 +14,7 @@ export class PigletsService {
         private pigletRepository: Repository<Piglet>,
         @InjectRepository(Pig)
         private pigRepository: Repository<Pig>,
+        private settingsService: SettingsService,
     ) { }
 
     async recordFarrowing(dto: RecordFarrowingDto) {
@@ -68,20 +71,32 @@ export class PigletsService {
             totalPrice?: number;
             pricePerKg?: number;
             weightKg?: number;
+            liveWeightKg?: number;
             date?: string;
         },
     ) {
         const saleDate = data.date ? new Date(data.date) : new Date();
+        let saleWeightKg = data.weightKg;
+        let saleLiveWeightKg: number | null = null;
+
+        if (data.saleType === 'CARCASS_KG') {
+            const settings = await this.settingsService.getAll();
+            const liveKg = data.liveWeightKg ?? data.weightKg ?? 0;
+            saleLiveWeightKg = liveKg;
+            saleWeightKg = estimateCarcassKg(liveKg, settings.carcassYieldPercent);
+        }
+
         let totalPrice = data.totalPrice;
         if (data.saleType === 'CARCASS_KG' || data.saleType === 'LIVE_KG') {
-            totalPrice = Math.round((data.pricePerKg || 0) * (data.weightKg || 0));
+            totalPrice = Math.round((data.pricePerKg || 0) * (saleWeightKg || 0));
         }
         return this.pigletRepository.update(pigletId, {
             status: 'SOLD',
             saleType: data.saleType,
             salePrice: totalPrice,
             salePricePerKg: data.pricePerKg,
-            saleWeightKg: data.weightKg,
+            saleWeightKg,
+            saleLiveWeightKg,
             saleDate,
         });
     }

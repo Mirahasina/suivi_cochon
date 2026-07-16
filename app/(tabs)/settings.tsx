@@ -187,9 +187,19 @@ export default function SettingsScreen() {
                     />
                     <Text className="text-[12px] text-text opacity-60 mb-2">Carcasse / cochon mort (Ar/kg)</Text>
                     <TextInput
-                        className="bg-background border border-border rounded-xl p-3 mb-4"
+                        className="bg-background border border-border rounded-xl p-3 mb-3"
                         value={String(settings.carcassSalePricePerKg)}
                         onChangeText={(v) => update('carcassSalePricePerKg', v)}
+                        keyboardType="numeric"
+                    />
+                    <Text className="text-[12px] text-text opacity-60 mb-2">Rendement carcasse (%)</Text>
+                    <Text className="text-[11px] text-text opacity-50 mb-2">
+                        Estimation poids vide = poids vif × ce % (défaut 72). Ajustez selon votre expérience.
+                    </Text>
+                    <TextInput
+                        className="bg-background border border-border rounded-xl p-3 mb-4"
+                        value={String(settings.carcassYieldPercent ?? 72)}
+                        onChangeText={(v) => update('carcassYieldPercent', v)}
                         keyboardType="numeric"
                     />
                     <Text className="text-primary font-bold mb-2">Porcelet vivant — cours du marché (Ar/kg)</Text>

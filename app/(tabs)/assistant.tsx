@@ -1,20 +1,20 @@
-import * as Location from 'expo-location';
 import * as Linking from 'expo-linking';
+import * as Location from 'expo-location';
 import React, { useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { Colors } from '../../constants/theme';
+import { discoverAlerts, ProposedAlert } from '../../services/alertDiscovery';
 import { watchService } from '../../services/api';
 import { askHybridAssistant, ChatTurn } from '../../services/assistantHybrid';
-import { discoverAlerts, ProposedAlert } from '../../services/alertDiscovery';
 import type { ProposedContact } from '../../services/contactDiscovery';
-import { checkServerReachable } from '../../services/syncService';
 import {
     getContactSearchPreferences,
     getFarmContacts,
     saveContactSearchPreferences,
     upsertFarmContact,
 } from '../../services/localStore';
+import { checkServerReachable } from '../../services/syncService';
 import type { ContactSearchPreferences, FarmContact, WatchAlert } from '../../services/types';
 
 type Tab = 'chat' | 'alertes' | 'urgence';
@@ -353,9 +353,6 @@ export default function AssistantScreen() {
         <View className="flex-1 bg-background">
             <View className="p-8 bg-primary rounded-b-[35px]">
                 <Text className="text-secondary text-[28px] font-bold">Aide IA</Text>
-                <Text className="text-white opacity-80 text-[14px]">
-                    Posez une question, signalez une alerte ou trouvez un contact
-                </Text>
                 <View className="flex-row mt-4 bg-white/15 rounded-xl p-1">
                     {TABS.map((t) => (
                         <TouchableOpacity

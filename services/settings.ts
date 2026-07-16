@@ -15,6 +15,7 @@ export interface AppSettings {
     pigletLivePriceWeek5_8: number;
     pigletLivePriceWeek9_12: number;
     pigletLivePriceWeek13Plus: number;
+    carcassYieldPercent: number;
     simpleFinanceMode: boolean;
     farmRegion: string;
 }
@@ -30,6 +31,7 @@ const DEFAULTS: AppSettings = {
     pigletLivePriceWeek5_8: 15000,
     pigletLivePriceWeek9_12: 13000,
     pigletLivePriceWeek13Plus: 12000,
+    carcassYieldPercent: 72,
     simpleFinanceMode: false,
     farmRegion: 'Antananarivo',
 };

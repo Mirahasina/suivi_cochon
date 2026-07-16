@@ -66,6 +66,7 @@ export interface Pig {
     saleDate?: string;
     saleType?: 'CARCASS_KG' | 'LIVE_KG' | 'UNIT';
     saleWeightKg?: number;
+    saleLiveWeightKg?: number;
     salePricePerKg?: number;
     isQuarantined?: boolean;
     quarantineReason?: string;
@@ -115,6 +116,7 @@ export interface Piglet {
     salePrice?: number;
     saleType?: 'PIGLET_UNIT' | 'LIVE_KG' | 'CARCASS_KG';
     saleWeightKg?: number;
+    saleLiveWeightKg?: number;
     salePricePerKg?: number;
     motherId: number;
     fatherId?: number;
@@ -151,4 +153,43 @@ export interface WatchAlert {
     source: 'MANUAL' | 'WEB' | 'AI';
     createdAt: string;
     _pendingSync?: boolean;
+}
+
+export type ExpenseCategory = 'VET' | 'TRANSPORT' | 'LABOR' | 'MEDS' | 'EQUIPMENT' | 'OTHER';
+
+export interface Expense {
+    id: number;
+    date: string;
+    amountAriary: number;
+    category: ExpenseCategory;
+    note?: string;
+    createdAt?: string;
+}
+
+export interface FinanceSummary {
+    month: number | null;
+    year: number | null;
+    periodLabel: string;
+    revenue: number;
+    pigRevenue: number;
+    pigletRevenue: number;
+    purchaseCost: number;
+    feedCost: number;
+    otherExpenses: number;
+    totalCost: number;
+    profit: number;
+    expenseBreakdown: Record<string, number>;
+    expenses: Expense[];
+    recentSales: {
+        kind: 'pig' | 'piglet';
+        id: number;
+        name: string;
+        saleType?: string | null;
+        saleWeightKg?: number;
+        saleLiveWeightKg?: number;
+        salePrice: number;
+        saleDate?: string;
+    }[];
+    soldPigsCount: number;
+    soldPigletsCount: number;
 }

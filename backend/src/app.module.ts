@@ -13,6 +13,7 @@ import { Batch } from './entities/batch.entity';
 import { AppSetting } from './entities/app-setting.entity';
 import { FeedRecipe } from './entities/feed-recipe.entity';
 import { WatchAlert } from './entities/watch-alert.entity';
+import { Expense } from './entities/expense.entity';
 import { HealthModule } from './health/health.module';
 import { PigletsModule } from './piglets/piglets.module';
 import { PigsModule } from './pigs/pigs.module';
@@ -24,6 +25,8 @@ import { BatchesModule } from './batches/batches.module';
 import { ReportsModule } from './reports/reports.module';
 import { FeedRecipesModule } from './feed-recipes/feed-recipes.module';
 import { WatchModule } from './watch/watch.module';
+import { ExpensesModule } from './expenses/expenses.module';
+import { FinanceModule } from './finance/finance.module';
 
 @Module({
     imports: [
@@ -34,7 +37,7 @@ import { WatchModule } from './watch/watch.module';
             useFactory: (configService: ConfigService) => ({
                 type: 'postgres',
                 url: configService.get('DATABASE_URL'),
-                entities: [Pig, WeightEntry, VaccineType, Vaccination, GrowthNorm, FeedingEntry, Piglet, Building, Batch, AppSetting, FeedRecipe, WatchAlert],
+                entities: [Pig, WeightEntry, VaccineType, Vaccination, GrowthNorm, FeedingEntry, Piglet, Building, Batch, AppSetting, FeedRecipe, WatchAlert, Expense],
                 synchronize: true,
             }),
         }),
@@ -49,6 +52,8 @@ import { WatchModule } from './watch/watch.module';
         ReportsModule,
         FeedRecipesModule,
         WatchModule,
+        ExpensesModule,
+        FinanceModule,
     ],
 })
 export class AppModule { }

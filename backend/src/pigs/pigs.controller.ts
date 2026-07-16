@@ -79,6 +79,7 @@ export class PigsController {
             saleType: 'CARCASS_KG' | 'LIVE_KG' | 'UNIT';
             pricePerKg?: number;
             weightKg?: number;
+            liveWeightKg?: number;
             totalPrice?: number;
             price?: number;
             date?: string;
@@ -88,6 +89,7 @@ export class PigsController {
             saleType: body.saleType || 'UNIT',
             pricePerKg: body.pricePerKg,
             weightKg: body.weightKg,
+            liveWeightKg: body.liveWeightKg,
             totalPrice: body.totalPrice ?? body.price,
             date: body.date,
         });

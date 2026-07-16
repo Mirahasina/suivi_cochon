@@ -24,7 +24,7 @@ import {
 import { enqueue, isNetworkError, queued } from './offlineQueue';
 import type { Pig, Piglet, VaccineSuggestion, VaccineType, WatchAlert } from './types';
 
-export type { Pig, Piglet, VaccineSuggestion, VaccineType, Vaccination, WatchAlert } from './types';
+export type { Pig, Piglet, VaccineSuggestion, VaccineType, Vaccination, WatchAlert, Expense, ExpenseCategory, FinanceSummary } from './types';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://suivi-cochon1.onrender.com';
 
@@ -232,6 +232,7 @@ export const pigService = {
             saleType: 'CARCASS_KG' | 'LIVE_KG' | 'UNIT';
             pricePerKg?: number;
             weightKg?: number;
+            liveWeightKg?: number;
             totalPrice?: number;
             date?: string;
         },
@@ -468,6 +469,35 @@ export const reportService = {
     },
 };
 
+export const expenseService = {
+    getAll: async () => {
+        const response = await api.get<import('./types').Expense[]>('/expenses');
+        return response.data;
+    },
+    create: async (data: {
+        amountAriary: number;
+        category?: import('./types').ExpenseCategory;
+        note?: string;
+        date?: string;
+    }) => {
+        const response = await api.post('/expenses', data);
+        return response.data;
+    },
+    delete: async (id: number) => {
+        await api.delete(`/expenses/${id}`);
+    },
+};
+
+export const financeService = {
+    getSummary: async (month?: number, year?: number) => {
+        const params: Record<string, number> = {};
+        if (month != null) params.month = month;
+        if (year != null) params.year = year;
+        const response = await api.get<import('./types').FinanceSummary>('/finance/summary', { params });
+        return response.data;
+    },
+};
+
 export interface FeedIngredient {
     name: string;
     percentKg: number;
@@ -543,6 +573,7 @@ export const pigletService = {
             totalPrice?: number;
             pricePerKg?: number;
             weightKg?: number;
+            liveWeightKg?: number;
             date?: string;
         },
     ) => {

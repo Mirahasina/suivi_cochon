@@ -31,6 +31,9 @@ export class Piglet {
     saleWeightKg: number;
 
     @Column({ type: 'float', nullable: true })
+    saleLiveWeightKg: number;
+
+    @Column({ type: 'float', nullable: true })
     salePricePerKg: number;
 
     @ManyToOne(() => Pig, { nullable: false })

@@ -11,6 +11,7 @@ import { settingsService } from '../../services/settings';
 import { RAISING_PURPOSE_LABELS, RaisingPurpose } from '../../constants/raising-purpose';
 import {
     calculateSaleTotal,
+    estimateCarcassKg,
     formatAgeLabel,
     getAgeInDays,
     MarketPrices,
@@ -43,6 +44,7 @@ export default function PigDetailScreen() {
     const [salePricePerKg, setSalePricePerKg] = useState('12000');
     const [saleType, setSaleType] = useState<'CARCASS_KG' | 'LIVE_KG'>('CARCASS_KG');
     const [marketPrices, setMarketPrices] = useState<MarketPrices | null>(null);
+    const [carcassYieldPercent, setCarcassYieldPercent] = useState(72);
 
     const selectedVaccine = vaccineTypes.find((v) => v.id === selectedVaccineTypeId);
 
@@ -58,6 +60,7 @@ export default function PigDetailScreen() {
                 const appSettings = await settingsService.get();
                 const prices = settingsToMarketPrices(appSettings);
                 setMarketPrices(prices);
+                setCarcassYieldPercent(appSettings.carcassYieldPercent ?? 72);
                 const weight = String(data.currentStatus?.currentWeight ?? data.currentStatus?.expectedWeight ?? '');
                 setSaleWeightKg(weight);
                 setSalePricePerKg(String(prices.carcassSalePricePerKg));
@@ -246,16 +249,19 @@ export default function PigDetailScreen() {
     };
 
     const handleSell = async () => {
-        const weight = parseFloat(saleWeightKg);
+        const liveWeight = parseFloat(saleWeightKg);
         const pricePerKg = parseFloat(salePricePerKg);
-        if (!weight || !pricePerKg) {
+        if (!liveWeight || !pricePerKg) {
             return alert('Indiquez le poids (kg) et le prix au kg');
         }
-        const totalPrice = Math.round(weight * pricePerKg);
+        const billableWeight =
+            saleType === 'CARCASS_KG' ? estimateCarcassKg(liveWeight, carcassYieldPercent) : liveWeight;
+        const totalPrice = Math.round(billableWeight * pricePerKg);
         try {
             await pigService.sell(Number(id), {
                 saleType,
-                weightKg: weight,
+                weightKg: saleType === 'CARCASS_KG' ? billableWeight : liveWeight,
+                liveWeightKg: saleType === 'CARCASS_KG' ? liveWeight : undefined,
                 pricePerKg,
                 totalPrice,
             });
@@ -275,7 +281,10 @@ export default function PigDetailScreen() {
 
     const status = pig.currentStatus;
     const financials = pig.financials;
-    const saleTotal = Math.round((parseFloat(saleWeightKg) || 0) * (parseFloat(salePricePerKg) || 0));
+    const liveSaleKg = parseFloat(saleWeightKg) || 0;
+    const estimatedCarcassKg =
+        saleType === 'CARCASS_KG' ? estimateCarcassKg(liveSaleKg, carcassYieldPercent) : liveSaleKg;
+    const saleTotal = Math.round(estimatedCarcassKg * (parseFloat(salePricePerKg) || 0));
 
     return (
         <ScrollView className="flex-1 bg-background">
@@ -684,7 +693,7 @@ export default function PigDetailScreen() {
                             className="flex-1 bg-background border border-border rounded-xl p-3"
                             value={saleWeightKg}
                             onChangeText={setSaleWeightKg}
-                            placeholder={saleType === 'CARCASS_KG' ? 'Poids carcasse (kg)' : 'Poids vivant (kg)'}
+                            placeholder={saleType === 'CARCASS_KG' ? 'Poids vif (kg)' : 'Poids vivant (kg)'}
                             keyboardType="numeric"
                         />
                         <TextInput
@@ -695,6 +704,19 @@ export default function PigDetailScreen() {
                             keyboardType="numeric"
                         />
                     </View>
+                    {saleType === 'CARCASS_KG' && liveSaleKg > 0 && (
+                        <View className="bg-background border border-border rounded-xl p-3 mb-3">
+                            <Text className="text-[12px] text-text opacity-70">
+                                Poids carcasse estimé ({carcassYieldPercent}% rendement)
+                            </Text>
+                            <Text className="text-primary font-bold text-base">
+                                {estimatedCarcassKg.toFixed(1)} kg
+                            </Text>
+                            <Text className="text-[11px] text-text opacity-50 mt-1">
+                                Ajustable dans Réglages — estimation faute de poids vide exact.
+                            </Text>
+                        </View>
+                    )}
                     <View className="bg-primary p-4 rounded-xl items-center mb-3">
                         <Text className="text-white text-[12px] opacity-80">Total vente</Text>
                         <Text className="text-secondary text-xl font-bold">
@@ -713,6 +735,11 @@ export default function PigDetailScreen() {
                                 Vendu {pig.saleType === 'CARCASS_KG' ? 'mort' : 'vivant'}{' '}
                                 {pig.saleWeightKg ? `${pig.saleWeightKg} kg × ${pig.salePricePerKg?.toLocaleString()} Ar/kg` : ''}
                             </Text>
+                            {pig.saleLiveWeightKg != null && (
+                                <Text className="text-primary text-[12px] opacity-70 mt-1">
+                                    Poids vif : {pig.saleLiveWeightKg} kg
+                                </Text>
+                            )}
                             <Text className="text-primary font-bold">{pig.salePrice?.toLocaleString()} Ar</Text>
                         </View>
                     )}

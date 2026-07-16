@@ -25,6 +25,7 @@ export class PigletsController {
             totalPrice?: number;
             pricePerKg?: number;
             weightKg?: number;
+            liveWeightKg?: number;
             date?: string;
         },
     ) {
@@ -33,6 +34,7 @@ export class PigletsController {
             totalPrice: body.totalPrice ?? body.price,
             pricePerKg: body.pricePerKg,
             weightKg: body.weightKg,
+            liveWeightKg: body.liveWeightKg,
             date: body.date,
         });
     }
