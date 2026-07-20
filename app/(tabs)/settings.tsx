@@ -1,13 +1,12 @@
-import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { MADAGASCAR_REGIONS } from '../../constants/breeds';
 import { Colors } from '../../constants/theme';
-import { pigService, reportService, feedRecipeService, FeedRecipe } from '../../services/api';
+import { FeedRecipe, feedRecipeService, pigService, reportService } from '../../services/api';
 import { getQueueLength } from '../../services/offlineQueue';
-import { settingsService, AppSettings } from '../../services/settings';
+import { AppSettings, settingsService } from '../../services/settings';
 import { checkServerReachable, syncAll } from '../../services/syncService';
 
 export default function SettingsScreen() {
@@ -270,7 +269,7 @@ export default function SettingsScreen() {
                 </View>
 
                 {/* Simple mode */}
-                <View className="bg-white rounded-[25px] p-6 shadow-xl shadow-primary/10">
+                {/* <View className="bg-white rounded-[25px] p-6 shadow-xl shadow-primary/10">
                     <TouchableOpacity
                         className="flex-row justify-between items-center"
                         onPress={() => setSettings((s) => ({ ...s!, simpleFinanceMode: !s!.simpleFinanceMode }))}
@@ -283,10 +282,10 @@ export default function SettingsScreen() {
                             <View className={`w-5 h-5 rounded-full bg-white mx-1 ${settings.simpleFinanceMode ? 'self-end' : 'self-start'}`} />
                         </View>
                     </TouchableOpacity>
-                </View>
+                </View> */}
 
                 {/* CSV Import */}
-                <View className="bg-white rounded-[25px] p-6 shadow-xl shadow-primary/10">
+                {/* <View className="bg-white rounded-[25px] p-6 shadow-xl shadow-primary/10">
                     <Text className="text-primary font-bold mb-2">Import CSV (plusieurs cochons)</Text>
                     <Text className="text-[11px] text-text opacity-50 mb-3">
                         En-tête: nom,race,MALE/FEMALE,date(YYYY-MM-DD),prix,poids{'\n'}
@@ -302,7 +301,7 @@ export default function SettingsScreen() {
                     <TouchableOpacity className="bg-primary p-3 rounded-xl items-center mt-3" onPress={handleImportCsv}>
                         <Text className="text-white font-bold">Importer</Text>
                     </TouchableOpacity>
-                </View>
+                </View> */}
 
                 <TouchableOpacity className="bg-secondary p-4 rounded-xl items-center mb-8" onPress={handleSave} disabled={saving}>
                     <Text className="text-white font-bold">{saving ? 'Enregistrement...' : 'Enregistrer tous les paramètres'}</Text>

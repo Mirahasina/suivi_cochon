@@ -166,7 +166,18 @@ const DEFAULT_CONTACT_PREFS: ContactSearchPreferences = {
 
 export async function getContactSearchPreferences(): Promise<ContactSearchPreferences> {
     const raw = await AsyncStorage.getItem(KEYS.contactPrefs);
-    return raw ? { ...DEFAULT_CONTACT_PREFS, ...JSON.parse(raw) } : DEFAULT_CONTACT_PREFS;
+    const merged = raw ? { ...DEFAULT_CONTACT_PREFS, ...JSON.parse(raw) } : { ...DEFAULT_CONTACT_PREFS };
+    const c = merged.farmCoordinates;
+    if (c) {
+        const latitude = Number(c.latitude);
+        const longitude = Number(c.longitude);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+            merged.farmCoordinates = undefined;
+        } else {
+            merged.farmCoordinates = { latitude, longitude };
+        }
+    }
+    return merged;
 }
 
 export async function saveContactSearchPreferences(prefs: Partial<ContactSearchPreferences>) {

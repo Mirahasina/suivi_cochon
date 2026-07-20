@@ -1,8 +1,7 @@
 import * as Linking from 'expo-linking';
 import * as Location from 'expo-location';
 import React, { useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import { ActivityIndicator, Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../../constants/theme';
 import { discoverAlerts, ProposedAlert } from '../../services/alertDiscovery';
 import { watchService } from '../../services/api';
@@ -258,38 +257,97 @@ export default function AssistantScreen() {
                 farmCoordinates: { latitude: pos.coords.latitude, longitude: pos.coords.longitude },
             });
             setPrefs(await getContactSearchPreferences());
+        } catch {
+            Alert.alert('Erreur GPS', 'Impossible de détecter la position. Réessayez ou utilisez un lien Maps.');
         } finally {
             setGeoLoading(false);
         }
     };
 
-    const applyMapLink = () => {
+    const applyMapLink = async () => {
         const text = mapLink.trim();
-        if (!text) return;
-        const matchAt = text.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-        const matchQ = text.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
-        const lat = Number((matchAt?.[1] ?? matchQ?.[1]) || '');
-        const lng = Number((matchAt?.[2] ?? matchQ?.[2]) || '');
-        if (Number.isNaN(lat) || Number.isNaN(lng)) return;
-        setLatText(String(lat));
-        setLngText(String(lng));
-        setPrefs((p) => ({
-            ...(p as ContactSearchPreferences),
-            farmCoordinates: { latitude: lat, longitude: lng },
-        }));
+        if (!text) {
+            Alert.alert('Lien manquant', 'Collez un lien Google Maps contenant les coordonnées.');
+            return;
+        }
+        try {
+            const matchAt = text.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+            const matchQ = text.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+            const matchLl = text.match(/[?&]ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+            const matchPath = text.match(/\/(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+            const lat = Number(matchAt?.[1] ?? matchQ?.[1] ?? matchLl?.[1] ?? matchPath?.[1] ?? '');
+            const lng = Number(matchAt?.[2] ?? matchQ?.[2] ?? matchLl?.[2] ?? matchPath?.[2] ?? '');
+            if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+                Alert.alert(
+                    'Lien non reconnu',
+                    'Impossible de lire les coordonnées. Ouvrez Google Maps, partagez le lieu, puis collez le lien ici.',
+                );
+                return;
+            }
+            setLatText(String(lat));
+            setLngText(String(lng));
+            const next = {
+                ...(prefs as ContactSearchPreferences),
+                farmCoordinates: { latitude: lat, longitude: lng },
+            };
+            setPrefs(next);
+            await saveContactSearchPreferences({
+                farmBaseLocation: next.farmBaseLocation || 'Ferme',
+                allowedZones: zonesText.split(',').map((s) => s.trim()).filter(Boolean),
+                blockedFarZones: blockedText.split(',').map((s) => s.trim()).filter(Boolean),
+                maxDistanceHintKm: next.maxDistanceHintKm || 80,
+                farmCoordinates: { latitude: lat, longitude: lng },
+            });
+            Alert.alert('Position enregistrée', `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+        } catch {
+            Alert.alert('Erreur', 'Impossible d\'appliquer ce lien.');
+        }
     };
 
     const searchFarmPlace = async () => {
         const q = (prefs?.farmBaseLocation || '').trim();
-        if (!q) return;
-        const geo = await Location.geocodeAsync(q);
-        if (!geo?.length) return;
-        setPrefs((p) => ({
-            ...(p as ContactSearchPreferences),
-            farmCoordinates: { latitude: geo[0].latitude, longitude: geo[0].longitude },
-        }));
-        setLatText(String(geo[0].latitude));
-        setLngText(String(geo[0].longitude));
+        if (!q) {
+            Alert.alert('Lieu manquant', 'Indiquez d\'abord le nom du lieu (ex: Manjakandriana).');
+            return;
+        }
+        setGeoLoading(true);
+        try {
+            const geo = await Location.geocodeAsync(q);
+            if (!geo?.length) {
+                Alert.alert('Introuvable', `Aucun résultat pour « ${q} ». Essayez un nom plus précis.`);
+                return;
+            }
+            const { latitude, longitude } = geo[0];
+            setPrefs((p) => ({
+                ...(p as ContactSearchPreferences),
+                farmCoordinates: { latitude, longitude },
+            }));
+            setLatText(String(latitude));
+            setLngText(String(longitude));
+            await saveContactSearchPreferences({
+                farmBaseLocation: q,
+                allowedZones: zonesText.split(',').map((s) => s.trim()).filter(Boolean),
+                blockedFarZones: blockedText.split(',').map((s) => s.trim()).filter(Boolean),
+                maxDistanceHintKm: prefs?.maxDistanceHintKm || 80,
+                farmCoordinates: { latitude, longitude },
+            });
+            Alert.alert('Lieu trouvé', `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+        } catch {
+            Alert.alert('Erreur', 'La recherche de lieu a échoué. Vérifiez le réseau ou utilisez le GPS.');
+        } finally {
+            setGeoLoading(false);
+        }
+    };
+
+    const openFarmInMaps = async () => {
+        const coords = prefs?.farmCoordinates;
+        if (!coords) return;
+        const url = `https://www.google.com/maps/search/?api=1&query=${coords.latitude},${coords.longitude}`;
+        try {
+            await Linking.openURL(url);
+        } catch {
+            Alert.alert('Erreur', 'Impossible d\'ouvrir Google Maps.');
+        }
     };
 
     const addContact = async () => {
@@ -347,7 +405,16 @@ export default function AssistantScreen() {
         t === 'DISEASE' ? 'bg-danger/10 text-danger' : t === 'THEFT' ? 'bg-secondary/10 text-secondary' : t === 'SUPPLY' ? 'bg-primary/10 text-primary' : 'bg-border text-text';
 
     const farmLabel = prefs?.farmBaseLocation || 'Non définie';
-    const hasCoords = !!prefs?.farmCoordinates;
+    const farmCoords = (() => {
+        const c = prefs?.farmCoordinates;
+        if (!c) return null;
+        const latitude = Number(c.latitude);
+        const longitude = Number(c.longitude);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+        if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
+        return { latitude, longitude };
+    })();
+    const hasCoords = !!farmCoords;
 
     return (
         <View className="flex-1 bg-background">
@@ -672,40 +739,21 @@ export default function AssistantScreen() {
                 {tab === 'urgence' && (
                     <>
                         <View className="bg-white rounded-[20px] overflow-hidden shadow-sm">
-                            {hasCoords ? (
-                                <MapView
-                                    style={{ width: '100%', height: 180 }}
-                                    region={{
-                                        latitude: prefs!.farmCoordinates!.latitude,
-                                        longitude: prefs!.farmCoordinates!.longitude,
-                                        latitudeDelta: 0.04,
-                                        longitudeDelta: 0.04,
-                                    }}
-                                >
-                                    <Marker
-                                        coordinate={{
-                                            latitude: prefs!.farmCoordinates!.latitude,
-                                            longitude: prefs!.farmCoordinates!.longitude,
-                                        }}
-                                        draggable
-                                        onDragEnd={async (e) => {
-                                            const { latitude, longitude } = e.nativeEvent.coordinate;
-                                            setPrefs((p) => ({
-                                                ...(p as ContactSearchPreferences),
-                                                farmCoordinates: { latitude, longitude },
-                                            }));
-                                            setLatText(String(latitude));
-                                            setLngText(String(longitude));
-                                            await saveContactSearchPreferences({
-                                                farmBaseLocation: prefs?.farmBaseLocation || 'Ferme',
-                                                allowedZones: zonesText.split(',').map((s) => s.trim()).filter(Boolean),
-                                                blockedFarZones: blockedText.split(',').map((s) => s.trim()).filter(Boolean),
-                                                maxDistanceHintKm: prefs?.maxDistanceHintKm || 80,
-                                                farmCoordinates: { latitude, longitude },
-                                            });
-                                        }}
-                                    />
-                                </MapView>
+                            {hasCoords && farmCoords ? (
+                                <View className="bg-background px-4 py-5 gap-2">
+                                    <Text className="text-primary font-bold text-[13px]">Position GPS enregistrée</Text>
+                                    <Text className="text-text text-[12px] opacity-70">
+                                        {farmCoords.latitude.toFixed(5)}, {farmCoords.longitude.toFixed(5)}
+                                    </Text>
+                                    <TouchableOpacity
+                                        className="border border-primary p-2.5 rounded-xl items-center mt-1"
+                                        onPress={openFarmInMaps}
+                                    >
+                                        <Text className="text-primary font-semibold text-[12px]">
+                                            Voir dans Google Maps
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
                             ) : (
                                 <View className="h-[120px] bg-background items-center justify-center">
                                     <Text className="text-text opacity-40 text-[13px]">Carte non définie</Text>
@@ -715,7 +763,7 @@ export default function AssistantScreen() {
                                 <Text className="text-primary font-bold text-[15px]">{farmLabel}</Text>
                                 <Text className="text-[11px] text-text opacity-50 mt-0.5">
                                     {hasCoords
-                                        ? 'Déplacez le marqueur pour affiner'
+                                        ? 'Affinez via GPS, recherche de lieu ou lien Maps'
                                         : 'Activez le GPS pour placer votre ferme'}
                                 </Text>
                                 <TouchableOpacity
@@ -746,6 +794,7 @@ export default function AssistantScreen() {
                                         <TouchableOpacity
                                             className="border border-border p-2 rounded-lg items-center"
                                             onPress={searchFarmPlace}
+                                            disabled={geoLoading}
                                         >
                                             <Text className="text-text text-[12px]">Rechercher ce lieu</Text>
                                         </TouchableOpacity>
@@ -754,6 +803,8 @@ export default function AssistantScreen() {
                                             value={mapLink}
                                             onChangeText={setMapLink}
                                             placeholder="Lien Google Maps"
+                                            autoCapitalize="none"
+                                            autoCorrect={false}
                                         />
                                         <TouchableOpacity
                                             className="border border-border p-2 rounded-lg items-center"

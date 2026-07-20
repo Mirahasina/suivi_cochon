@@ -530,15 +530,20 @@ function answerHerdOverview(ctx: FarmContext, mode: AssistantMode): AssistantAns
     };
 }
 
-function mergeContextText(question: string, history: ChatTurn[]): string {
-    const recent = history
-        .filter((m) => m.role === 'user')
-        .slice(-2)
-        .map((m) => m.text);
-    return [...recent, question].join(' ');
-}
+type IntentFlags = {
+    isGreeting: boolean;
+    isWeight: boolean;
+    isSick: boolean;
+    isVet: boolean;
+    isFeed: boolean;
+    isSpread: boolean;
+    isTheft: boolean;
+    isAlerts: boolean;
+    isVaccine: boolean;
+    isOverview: boolean;
+};
 
-function detectIntent(q: string) {
+function detectIntent(q: string): IntentFlags {
     const isGreeting = includesAny(q, ['bonjour', 'salut', 'bonsoir', 'aide', 'hello']);
     const isWeight = includesAny(q, ['poids', 'kg', 'peser', 'pese', 'combien pese', 'combien pèse']);
     const isSick =
@@ -560,13 +565,49 @@ function detectIntent(q: string) {
     return { isGreeting, isWeight, isSick, isVet, isFeed, isSpread, isTheft, isAlerts, isVaccine, isOverview };
 }
 
+function hasStrongIntent(intent: IntentFlags) {
+    return (
+        intent.isWeight ||
+        intent.isSick ||
+        intent.isVet ||
+        intent.isFeed ||
+        intent.isSpread ||
+        intent.isTheft ||
+        intent.isAlerts ||
+        intent.isVaccine ||
+        intent.isOverview
+    );
+}
+
+/** Suites courtes (« et après ? », « oui », symptômes seuls) → on enrichit avec le dernier message user. */
+function mergeContextText(question: string, history: ChatTurn[]): string {
+    const currentIntent = detectIntent(normalize(question));
+    if (hasStrongIntent(currentIntent)) return question;
+
+    const lastUser = [...history].reverse().find((m) => m.role === 'user');
+    if (!lastUser || normalize(lastUser.text) === normalize(question)) return question;
+
+    const words = question.trim().split(/\s+/).filter(Boolean);
+    const looksLikeFollowUp = words.length <= 12 || includesAny(question, [
+        'et', 'aussi', 'ensuite', 'apres', 'après', 'oui', 'non', 'pourquoi', 'comment', 'plus', 'encore',
+    ]);
+    if (!looksLikeFollowUp) return question;
+
+    return `${lastUser.text}\n${question}`;
+}
+
 export async function askHybridAssistant(question: string, history: ChatTurn[] = []): Promise<AssistantAnswer> {
     const online = await checkServerReachable();
     const mode: AssistantMode = online ? 'online' : 'offline';
     const expandedQuestion = expandMalagasy(question);
-    const fullText = mergeContextText(expandedQuestion, history.map((h) => ({ ...h, text: expandMalagasy(h.text) })));
+    const expandedHistory = history.map((h) => ({ ...h, text: expandMalagasy(h.text) }));
+    const currentIntent = detectIntent(normalize(expandedQuestion));
+    const fullText = mergeContextText(expandedQuestion, expandedHistory);
+    // Si le message actuel est vague, on reprend l'intention du contexte fusionné
+    const intent = hasStrongIntent(currentIntent)
+        ? currentIntent
+        : detectIntent(normalize(fullText));
     const q = normalize(fullText);
-    const intent = detectIntent(q);
 
     const [pigs, suggestions, contacts, alerts, prefs, biosecurity] = await Promise.all([
         pigService.getAll().catch(() => [] as Pig[]),
@@ -580,7 +621,7 @@ export async function askHybridAssistant(question: string, history: ChatTurn[] =
     const ctx: FarmContext = { pigs, suggestions, contacts, alerts, prefs, biosecurity };
     const active = activePigs(pigs);
 
-    if (intent.isGreeting && !intent.isSick && !intent.isWeight) {
+    if (currentIntent.isGreeting && !hasStrongIntent(currentIntent) && history.length === 0) {
         return buildGreeting(mode, active.length);
     }
 
