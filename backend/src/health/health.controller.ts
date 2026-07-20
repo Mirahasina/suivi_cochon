@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
 import { HealthService } from './health.service';
-
+import { VaccineType } from '../entities/vaccine-type.entity';
 import { BIOSECURITY_PPA } from './vaccine-schedule';
 
 @Controller()
@@ -48,7 +48,7 @@ export class HealthController {
         body: {
             name: string;
             defaultRecallDays: number;
-            target?: string;
+            target?: VaccineType['target'];
             injectionRoute?: string;
             description?: string;
             timingNote?: string;
