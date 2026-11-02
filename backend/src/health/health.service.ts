@@ -142,17 +142,21 @@ export class HealthService {
             relations: ['vaccinations', 'vaccinations.vaccineType'],
         });
         if (!pig) throw new NotFoundException('Pig not found');
-        return this.computeSuggestions(pig);
+        const vaccineTypes = await this.vaccineTypeRepository.find();
+        return this.computeSuggestions(pig, vaccineTypes);
     }
 
     async getAllSuggestions(): Promise<VaccineSuggestion[]> {
-        const pigs = await this.pigRepository.find({
-            where: { status: 'ACTIVE' },
-            relations: ['vaccinations', 'vaccinations.vaccineType'],
-        });
+        const [pigs, vaccineTypes] = await Promise.all([
+            this.pigRepository.find({
+                where: { status: 'ACTIVE' },
+                relations: ['vaccinations', 'vaccinations.vaccineType'],
+            }),
+            this.vaccineTypeRepository.find(),
+        ]);
         const all: VaccineSuggestion[] = [];
         for (const pig of pigs) {
-            all.push(...(await this.computeSuggestions(pig)));
+            all.push(...(await this.computeSuggestions(pig, vaccineTypes)));
         }
         return all.sort((a, b) => {
             const priority = { overdue: 0, due: 1, upcoming: 2 };
@@ -193,9 +197,9 @@ export class HealthService {
         };
     }
 
-    private async computeSuggestions(pig: Pig): Promise<VaccineSuggestion[]> {
+    private async computeSuggestions(pig: Pig, types: VaccineType[]): Promise<VaccineSuggestion[]> {
         const doneTypeIds = new Set((pig.vaccinations || []).map((v) => v.vaccineType.id));
-        const vaccineTypes = this.enabledTypes(await this.vaccineTypeRepository.find());
+        const vaccineTypes = this.enabledTypes(types);
         const suggestions: VaccineSuggestion[] = [];
 
         // Planning porcelets / jeunes (tous sauf truies gestantes avec planning spécifique)

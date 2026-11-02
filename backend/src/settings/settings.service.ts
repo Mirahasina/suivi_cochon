@@ -80,18 +80,28 @@ export class SettingsService {
     }
 
     async getAll() {
-        const market = await this.getMarketPrices();
+        const storedSettings = await this.settingsRepository.find();
+        const values = new Map(storedSettings.map(({ key, value }) => [key, value]));
+        const getValue = (key: keyof typeof DEFAULTS) => values.get(key) ?? String(DEFAULTS[key]);
+        const market: MarketPrices = {
+            carcassSalePricePerKg: Number(getValue('carcassSalePricePerKg')),
+            liveAdultPricePerKg: Number(getValue('livePigSalePricePerKg')),
+            pigletLivePriceWeek1_4: Number(getValue('pigletLivePriceWeek1_4')),
+            pigletLivePriceWeek5_8: Number(getValue('pigletLivePriceWeek5_8')),
+            pigletLivePriceWeek9_12: Number(getValue('pigletLivePriceWeek9_12')),
+            pigletLivePriceWeek13Plus: Number(getValue('pigletLivePriceWeek13Plus')),
+        };
         return {
-            feedPricePerKg: Number(await this.get('feedPriceGrowth')),
-            feedPriceStarter: Number(await this.get('feedPriceStarter')),
-            feedPriceGrowth: Number(await this.get('feedPriceGrowth')),
-            feedPriceFinish: Number(await this.get('feedPriceFinish')),
+            feedPricePerKg: Number(getValue('feedPriceGrowth')),
+            feedPriceStarter: Number(getValue('feedPriceStarter')),
+            feedPriceGrowth: Number(getValue('feedPriceGrowth')),
+            feedPriceFinish: Number(getValue('feedPriceFinish')),
             livePigSalePricePerKg: market.liveAdultPricePerKg,
             carcassSalePricePerKg: market.carcassSalePricePerKg,
             ...market,
-            carcassYieldPercent: Number(await this.get('carcassYieldPercent')),
-            simpleFinanceMode: (await this.get('simpleFinanceMode')) === 'true',
-            farmRegion: await this.get('farmRegion'),
+            carcassYieldPercent: Number(getValue('carcassYieldPercent')),
+            simpleFinanceMode: getValue('simpleFinanceMode') === 'true',
+            farmRegion: getValue('farmRegion'),
         };
     }
 
