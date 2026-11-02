@@ -13,9 +13,9 @@ export class CreatePigDto {
     @IsEnum(['MALE', 'FEMALE'])
     gender: 'MALE' | 'FEMALE';
 
-    @IsNotEmpty()
+    @IsOptional()
     @IsDateString()
-    birthDate: string;
+    birthDate?: string;
 
     @IsOptional()
     @IsDateString()

@@ -20,7 +20,7 @@ export class Pig {
     gender: string;
 
     @Column({ nullable: true })
-    birthDate: Date;
+    birthDate: Date | null;
 
     @Column({ nullable: true })
     purchaseDate: Date;

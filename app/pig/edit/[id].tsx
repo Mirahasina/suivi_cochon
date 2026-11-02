@@ -18,6 +18,7 @@ export default function EditPigScreen() {
     const [breed, setBreed] = useState('');
     const [gender, setGender] = useState<'MALE' | 'FEMALE'>('MALE');
     const [birthDate, setBirthDate] = useState(new Date());
+    const [hasBirthDate, setHasBirthDate] = useState(true);
     const [showPicker, setShowPicker] = useState(false);
     const [purchasePrice, setPurchasePrice] = useState('');
     const [initialWeight, setInitialWeight] = useState('');
@@ -34,7 +35,8 @@ export default function EditPigScreen() {
                 setName(data.name);
                 setBreed(data.breed);
                 setGender(data.gender);
-                setBirthDate(new Date(data.birthDate));
+                setHasBirthDate(Boolean(data.birthDate));
+                if (data.birthDate) setBirthDate(new Date(data.birthDate));
                 setPurchasePrice(data.purchasePrice?.toString() || '');
                 setInitialWeight(data.initialWeight?.toString() || '');
                 setStatus(data.status);
@@ -52,7 +54,7 @@ export default function EditPigScreen() {
         const weight = initialWeight ? Number(initialWeight) : undefined;
         const price = purchasePrice ? Number(purchasePrice) : undefined;
         if (!trimmedName) return Alert.alert('Nom requis', 'Saisissez un nom pour le cochon.');
-        if (birthDate > new Date()) return Alert.alert('Date invalide', 'La date de naissance ne peut pas être dans le futur.');
+        if (hasBirthDate && birthDate > new Date()) return Alert.alert('Date invalide', 'La date de naissance ne peut pas être dans le futur.');
         if (weight !== undefined && (!Number.isFinite(weight) || weight <= 0)) {
             return Alert.alert('Poids invalide', 'Le poids initial doit être un nombre supérieur à 0 kg.');
         }
@@ -66,7 +68,7 @@ export default function EditPigScreen() {
                 name: trimmedName,
                 breed,
                 gender,
-                birthDate: birthDate.toISOString(),
+                birthDate: hasBirthDate ? birthDate.toISOString() : null,
                 purchasePrice: price,
                 initialWeight: weight,
                 status: status as any
@@ -146,7 +148,14 @@ export default function EditPigScreen() {
             <View className="mb-5">
                 <Text className="text-[12px] text-primary mb-2 font-bold opacity-70">Date de Naissance</Text>
                 <TouchableOpacity className="bg-white border border-border rounded-[15px] p-4" onPress={() => setShowPicker(true)}>
-                    <Text style={{ color: Colors.text }}>{birthDate.toLocaleDateString('fr-FR')}</Text>
+                    <Text style={{ color: hasBirthDate ? Colors.text : '#AAA' }}>
+                        {hasBirthDate ? birthDate.toLocaleDateString('fr-FR') : 'Date inconnue — choisir'}
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity className="mt-2" onPress={() => setHasBirthDate((value) => !value)}>
+                    <Text className="text-[11px] text-primary underline">
+                        {hasBirthDate ? 'Effacer la date (inconnue)' : 'Renseigner la date de naissance'}
+                    </Text>
                 </TouchableOpacity>
                 {showPicker && (
                     <DateTimePicker
@@ -155,7 +164,10 @@ export default function EditPigScreen() {
                         display="default"
                         onChange={(e, d) => {
                             setShowPicker(false);
-                            if (d) setBirthDate(d);
+                            if (d) {
+                                setBirthDate(d);
+                                setHasBirthDate(true);
+                            }
                         }}
                         maximumDate={new Date()}
                     />

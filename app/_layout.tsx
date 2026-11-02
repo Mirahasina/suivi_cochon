@@ -6,7 +6,7 @@ import React, { useEffect, useRef } from 'react';
 import 'react-native-reanimated';
 import '../global.css';
 import { registerForPushNotificationsAsync } from '../utils/notifications';
-import { asyncStoragePersister, queryClient } from './query-client';
+import { asyncStoragePersister, queryClient } from '../services/query-client';
 import { syncAll, startAutoSync, stopAutoSync } from '../services/syncService';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';

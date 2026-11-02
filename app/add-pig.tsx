@@ -15,7 +15,8 @@ export default function AddPigScreen() {
     const [name, setName] = useState('');
     const [breed, setBreed] = useState('Local (Gasy)');
     const [gender, setGender] = useState<'MALE' | 'FEMALE'>('FEMALE');
-    const [purchaseDate, setPurchaseDate] = useState<Date | null>(new Date());
+    const [purchaseDate, setPurchaseDate] = useState<Date | null>(null);
+    const [hasBirthDate, setHasBirthDate] = useState(false);
     const [birthDate, setBirthDate] = useState(() => {
         const d = new Date();
         d.setDate(d.getDate() - 70);
@@ -50,11 +51,11 @@ export default function AddPigScreen() {
         if (origin === 'FARM_BORN' && (!Number.isInteger(count) || count < 1 || count > 30)) {
             return Alert.alert('Nombre invalide', 'Indiquez un nombre de porcelets compris entre 1 et 30.');
         }
-        if (origin === 'PURCHASED' && (!weight || !Number.isFinite(weight) || weight <= 0)) {
-            return Alert.alert('Poids requis', 'Indiquez un poids à l’achat supérieur à 0 kg.');
-        }
         if (weight !== undefined && (!Number.isFinite(weight) || weight <= 0)) {
             return Alert.alert('Poids invalide', 'Le poids doit être un nombre supérieur à 0 kg.');
+        }
+        if (origin === 'FARM_BORN' && !hasBirthDate) {
+            return Alert.alert('Date requise', 'Indiquez la date de naissance des porcelets.');
         }
         if (price !== undefined && (!Number.isFinite(price) || price < 0)) {
             return Alert.alert('Prix invalide', 'Le prix d’achat doit être un montant positif ou nul.');
@@ -69,13 +70,11 @@ export default function AddPigScreen() {
                 const baseName = name.trim();
                 const finalName = count > 1 ? `${baseName || 'Porcelet'} #${i + 1}` : baseName || 'Porcelet';
 
-                const effectiveBirthDate = birthDate;
-
                 await pigService.create({
                     name: finalName,
                     breed,
                     gender,
-                    birthDate: effectiveBirthDate.toISOString(),
+                    birthDate: hasBirthDate ? birthDate.toISOString() : undefined,
                     purchaseDate: origin === 'PURCHASED' && purchaseDate ? purchaseDate.toISOString() : undefined,
                     purchasePrice: origin === 'PURCHASED' ? price : undefined,
                     initialWeight: weight,
@@ -118,7 +117,10 @@ export default function AddPigScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                         className={`flex-1 flex-row items-center justify-center py-3.5 rounded-xl gap-2 ${origin === 'FARM_BORN' ? 'bg-primary shadow-md' : ''}`}
-                        onPress={() => setOrigin('FARM_BORN')}
+                        onPress={() => {
+                            setOrigin('FARM_BORN');
+                            setHasBirthDate(true);
+                        }}
                     >
                         <IconSymbol name="house" size={18} color={origin === 'FARM_BORN' ? '#D4AF37' : '#1B4332'} />
                         <Text className={`font-bold ${origin === 'FARM_BORN' ? 'text-white' : 'text-primary'}`}>Né à la ferme</Text>
@@ -206,18 +208,32 @@ export default function AddPigScreen() {
             <View className="flex-row gap-4 mb-5">
                 <View className="flex-1">
                     <Text className="text-[12px] text-primary mb-2 font-bold opacity-70">
-                        {origin === 'FARM_BORN' ? 'Date de naissance' : 'Naissance estimée'}
+                        {origin === 'FARM_BORN' ? 'Date de naissance' : 'Date de naissance'}
                     </Text>
-                    <TouchableOpacity
-                        className="bg-white border border-border rounded-[15px] p-4"
-                        onPress={() => setShowBirthPicker(true)}
-                    >
-                        <Text className="text-base text-text">{birthDate.toLocaleDateString('fr-FR')}</Text>
-                    </TouchableOpacity>
+                    {hasBirthDate ? (
+                        <TouchableOpacity
+                            className="bg-white border border-border rounded-[15px] p-4"
+                            onPress={() => setShowBirthPicker(true)}
+                        >
+                            <Text className="text-base text-text">{birthDate.toLocaleDateString('fr-FR')}</Text>
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity
+                            className="bg-white border border-border rounded-[15px] p-4"
+                            onPress={() => setShowBirthPicker(true)}
+                        >
+                            <Text className="text-base text-text opacity-60">Date inconnue — choisir</Text>
+                        </TouchableOpacity>
+                    )}
                     {origin === 'PURCHASED' && (
-                        <Text className="text-[11px] text-text opacity-50 mt-1">
-                            Âge réel du cochon (souvent 2 à 2,5 mois à l&apos;achat).
-                        </Text>
+                        <TouchableOpacity
+                            className="mt-2"
+                            onPress={() => setHasBirthDate((value) => !value)}
+                        >
+                            <Text className="text-[11px] text-primary underline">
+                                {hasBirthDate ? 'Effacer la date (inconnue)' : 'Je ne connais pas la date de naissance'}
+                            </Text>
+                        </TouchableOpacity>
                     )}
                     {showBirthPicker && (
                         <DateTimePicker
@@ -226,7 +242,10 @@ export default function AddPigScreen() {
                             display={Platform.OS === 'ios' ? 'inline' : 'default'}
                             onChange={(e, d) => {
                                 setShowBirthPicker(false);
-                                if (d) setBirthDate(d);
+                                if (d) {
+                                    setBirthDate(d);
+                                    setHasBirthDate(true);
+                                }
                             }}
                             maximumDate={origin === 'PURCHASED' && purchaseDate ? purchaseDate : new Date()}
                         />
@@ -241,9 +260,14 @@ export default function AddPigScreen() {
                             onPress={() => setShowPurchasePicker(true)}
                         >
                             <Text className={`text-base ${purchaseDate ? 'text-text' : 'text-[#AAA]'}`}>
-                                {purchaseDate ? purchaseDate.toLocaleDateString('fr-FR') : 'Choisir'}
+                                {purchaseDate ? purchaseDate.toLocaleDateString('fr-FR') : 'Date inconnue — choisir'}
                             </Text>
                         </TouchableOpacity>
+                        {purchaseDate && (
+                            <TouchableOpacity className="mt-2" onPress={() => setPurchaseDate(null)}>
+                                <Text className="text-[11px] text-primary underline">Effacer la date d&apos;achat</Text>
+                            </TouchableOpacity>
+                        )}
                         {showPurchasePicker && (
                             <DateTimePicker
                                 value={purchaseDate || new Date()}
@@ -253,11 +277,6 @@ export default function AddPigScreen() {
                                     setShowPurchasePicker(false);
                                     if (d) {
                                         setPurchaseDate(d);
-                                        setBirthDate(() => {
-                                            const b = new Date(d);
-                                            b.setDate(b.getDate() - 70);
-                                            return b;
-                                        });
                                     }
                                 }}
                                 maximumDate={new Date()}
@@ -270,7 +289,7 @@ export default function AddPigScreen() {
             <View className="flex-row gap-4">
                 <View className="flex-1 mb-5">
                     <Text className="text-[12px] text-primary mb-2 font-bold opacity-70">
-                        {origin === 'FARM_BORN' ? 'Poids de naissance (kg)' : 'Poids à l\'achat (kg)'}
+                        {origin === 'FARM_BORN' ? 'Poids de naissance (kg)' : 'Poids à l\'achat (kg) — optionnel'}
                     </Text>
                     <TextInput
                         className="bg-white border border-border rounded-[15px] p-4 text-base text-text"
@@ -282,7 +301,7 @@ export default function AddPigScreen() {
                     />
                     <Text className="text-[11px] text-text opacity-50 mt-1">
                         {origin === 'PURCHASED'
-                            ? 'Obligatoire. Le poids actuel sera calculé à partir de ce poids et des semaines depuis l\'achat.'
+                            ? 'Laissez vide si vous ne le connaissez pas et ajoutez-le plus tard.'
                             : 'Optionnel. Le poids actuel sera calculé selon l\'âge.'}
                     </Text>
                 </View>

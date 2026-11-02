@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Pig } from '../entities/pig.entity';
@@ -19,7 +19,22 @@ export class ReportsService {
         private settingsService: SettingsService,
     ) {}
 
-    async getMonthlySummary() {
+    async getMonthlySummary(startDate?: string, endDate?: string) {
+        if ((startDate && !endDate) || (!startDate && endDate)) {
+            throw new BadRequestException('La date de début et la date de fin sont requises ensemble.');
+        }
+
+        const now = new Date();
+        const firstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        const lastDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
+        const periodStart = startDate ? this.parseDate(startDate) : firstDay;
+        const periodEnd = endDate ? this.parseDate(endDate) : lastDay;
+        if (periodStart.getTime() > periodEnd.getTime()) {
+            throw new BadRequestException('La date de début doit précéder la date de fin.');
+        }
+        const periodEndExclusive = new Date(periodEnd);
+        periodEndExclusive.setUTCDate(periodEndExclusive.getUTCDate() + 1);
+
         const pigs = await this.pigRepo.find({ where: { status: 'ACTIVE' } });
         const pigIds = pigs.map((pig) => pig.id);
         const [feedingEntries, weightEntries, vaccinations] = pigIds.length
@@ -52,9 +67,6 @@ export class ReportsService {
             this.settingsService.getAll(),
             this.healthService.getAllSuggestions(),
         ]);
-        const now = new Date();
-        const month = now.getMonth();
-        const year = now.getFullYear();
 
         let totalFeedKg = 0;
         let totalFeedCost = 0;
@@ -66,7 +78,7 @@ export class ReportsService {
             const pigFeedings = feedingsByPig.get(pig.id) || [];
             pigFeedings.forEach((e) => {
                 const d = new Date(e.date);
-                if (d.getMonth() === month && d.getFullYear() === year) {
+                if (d >= periodStart && d < periodEndExclusive) {
                     monthlyFeed += e.quantityKg;
                     monthlyCost += Number(e.costAriary);
                 }
@@ -93,8 +105,8 @@ export class ReportsService {
 
         return {
             generatedAt: now.toISOString(),
-            month: month + 1,
-            year,
+            startDate: this.formatDate(periodStart),
+            endDate: this.formatDate(periodEnd),
             farmRegion: settings.farmRegion,
             activePigs: pigs.length,
             quarantinedPigs: pigs.filter((p) => p.isQuarantined).length,
@@ -105,5 +117,21 @@ export class ReportsService {
             vaccineSuggestions: suggestions,
             pigs: pigSummaries,
         };
+    }
+
+    private parseDate(value: string) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+            throw new BadRequestException('Les dates doivent être au format AAAA-MM-JJ.');
+        }
+        const [year, month, day] = value.split('-').map(Number);
+        const date = new Date(Date.UTC(year, month - 1, day));
+        if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+            throw new BadRequestException('La période contient une date invalide.');
+        }
+        return date;
+    }
+
+    private formatDate(date: Date) {
+        return date.toISOString().slice(0, 10);
     }
 }

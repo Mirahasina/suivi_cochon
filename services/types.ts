@@ -42,7 +42,7 @@ export interface Pig {
     name: string;
     breed: string;
     gender: 'MALE' | 'FEMALE';
-    birthDate: string;
+    birthDate: string | null;
     purchaseDate?: string;
     purchasePrice?: number;
     initialWeight?: number;

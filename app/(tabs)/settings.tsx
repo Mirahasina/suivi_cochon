@@ -1,7 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { MADAGASCAR_REGIONS } from '../../constants/breeds';
 import { Colors } from '../../constants/theme';
 import { SwipeTabScreen } from '../../components/navigation/swipe-tab-screen';
@@ -9,6 +12,17 @@ import { FeedRecipe, feedRecipeService, pigService, reportService } from '../../
 import { getQueueLength } from '../../services/offlineQueue';
 import { AppSettings, settingsService } from '../../services/settings';
 import { checkServerReachable, syncAll } from '../../services/syncService';
+import { formatDateOnly } from '../../utils/reproduction-dates';
+
+function escapeHtml(value: string) {
+    return value.replace(/[&<>"']/g, (character) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+    })[character] || character);
+}
 
 export default function SettingsScreen() {
     const queryClient = useQueryClient();
@@ -21,6 +35,10 @@ export default function SettingsScreen() {
     const [queueLength, setQueueLength] = useState(0);
     const [csvText, setCsvText] = useState('');
     const [feedRecipes, setFeedRecipes] = useState<FeedRecipe[]>([]);
+    const [reportStartDate, setReportStartDate] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+    const [reportEndDate, setReportEndDate] = useState(() => new Date());
+    const [reportDatePicker, setReportDatePicker] = useState<'start' | 'end' | null>(null);
+    const [exportingReport, setExportingReport] = useState(false);
 
     const load = async () => {
         setLoading(true);
@@ -109,24 +127,80 @@ export default function SettingsScreen() {
     };
 
     const handleExport = async () => {
+        setExportingReport(true);
         try {
-            const report = await reportService.getMonthly();
-            const text = [
-                `RAPPORT MENSUEL — ${report.farmRegion}`,
-                `Généré: ${new Date(report.generatedAt).toLocaleString()}`,
-                `Cochons actifs: ${report.activePigs}`,
-                `En quarantaine: ${report.quarantinedPigs}`,
-                `Aliment ce mois: ${report.totalFeedKg?.toFixed(1)} kg — ${report.totalFeedCost?.toLocaleString()} Ar`,
-                `Vaccins à faire: ${report.vaccinesDue}`,
-                '',
-                'DÉTAIL:',
-                ...report.pigs.map((p: any) =>
-                    `- ${p.name} (${p.breed}): ${p.currentWeight ?? '?'} kg, aliment ${p.monthlyFeedKg?.toFixed(1)} kg`
-                ),
-            ].join('\n');
-            await Share.share({ message: text, title: 'Rapport Suivi Cochon' });
-        } catch {
-            alert('Export impossible — serveur inaccessible');
+            const startDate = formatDateOnly(reportStartDate);
+            const endDate = formatDateOnly(reportEndDate);
+            const report = await reportService.getMonthly(startDate, endDate);
+            const pigs = report.pigs.map((pig: {
+                name: string;
+                breed: string;
+                currentWeight: number | null;
+                monthlyFeedKg: number;
+                monthlyFeedCost: number;
+            }) => `
+                <tr>
+                    <td>${escapeHtml(pig.name)}</td>
+                    <td>${escapeHtml(pig.breed || 'Non renseignée')}</td>
+                    <td>${pig.currentWeight == null ? '—' : `${pig.currentWeight} kg`}</td>
+                    <td>${pig.monthlyFeedKg.toFixed(1)} kg</td>
+                    <td>${Number(pig.monthlyFeedCost).toLocaleString('fr-FR')} Ar</td>
+                </tr>
+            `).join('');
+            const generatedAt = new Date(report.generatedAt).toLocaleString('fr-FR');
+            const html = `
+                <!DOCTYPE html>
+                <html lang="fr">
+                <head>
+                    <meta charset="utf-8">
+                    <style>
+                        body { font-family: Arial, sans-serif; color: #1b4332; padding: 28px; }
+                        h1 { margin: 0 0 6px; color: #1b4332; }
+                        .period { color: #666; margin-bottom: 24px; }
+                        .summary { display: flex; gap: 12px; margin: 18px 0 26px; }
+                        .card { flex: 1; background: #f1f6f2; border-radius: 8px; padding: 12px; }
+                        .label { color: #666; font-size: 11px; }
+                        .value { font-size: 18px; font-weight: bold; margin-top: 6px; }
+                        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                        th { background: #1b4332; color: white; text-align: left; }
+                        th, td { padding: 9px 7px; border: 1px solid #d9e2dc; }
+                        tr:nth-child(even) { background: #f7f9f7; }
+                        footer { margin-top: 28px; color: #777; font-size: 10px; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Rapport d'élevage</h1>
+                    <div class="period">${escapeHtml(report.farmRegion || '')} · du ${new Date(`${report.startDate}T00:00:00`).toLocaleDateString('fr-FR')} au ${new Date(`${report.endDate}T00:00:00`).toLocaleDateString('fr-FR')}</div>
+                    <div class="summary">
+                        <div class="card"><div class="label">Cochons actifs</div><div class="value">${report.activePigs}</div></div>
+                        <div class="card"><div class="label">En quarantaine</div><div class="value">${report.quarantinedPigs}</div></div>
+                        <div class="card"><div class="label">Aliment sur la période</div><div class="value">${Number(report.totalFeedKg).toFixed(1)} kg</div></div>
+                        <div class="card"><div class="label">Coût aliment</div><div class="value">${Number(report.totalFeedCost).toLocaleString('fr-FR')} Ar</div></div>
+                    </div>
+                    <h2>Détail des cochons actifs</h2>
+                    <table>
+                        <thead><tr><th>Nom</th><th>Race</th><th>Poids actuel</th><th>Aliment période</th><th>Coût période</th></tr></thead>
+                        <tbody>${pigs || '<tr><td colspan="5">Aucun cochon actif</td></tr>'}</tbody>
+                    </table>
+                    <footer>Vaccins à faire : ${report.vaccinesDue} · Rapport généré le ${generatedAt}</footer>
+                </body>
+                </html>
+            `;
+            const { uri } = await Print.printToFileAsync({ html });
+            if (!(await Sharing.isAvailableAsync())) {
+                alert(`Le PDF a été créé, mais le partage n'est pas disponible sur cet appareil : ${uri}`);
+                return;
+            }
+            await Sharing.shareAsync(uri, {
+                mimeType: 'application/pdf',
+                dialogTitle: 'Partager le rapport PDF',
+                UTI: 'com.adobe.pdf',
+            });
+        } catch (error) {
+            console.error('Report PDF export failed:', error);
+            alert('Export PDF impossible. Vérifiez la connexion puis réessayez.');
+        } finally {
+            setExportingReport(false);
         }
     };
 
@@ -184,10 +258,42 @@ export default function SettingsScreen() {
                         <TouchableOpacity className="flex-1 bg-primary p-3 rounded-xl items-center" onPress={handleSync} disabled={syncing}>
                             <Text className="text-white font-bold text-[12px]">{syncing ? '...' : 'Synchroniser'}</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity className="flex-1 bg-secondary p-3 rounded-xl items-center" onPress={handleExport}>
-                            <Text className="text-white font-bold text-[12px]">Exporter rapport</Text>
+                        <TouchableOpacity className="flex-1 bg-secondary p-3 rounded-xl items-center" onPress={handleExport} disabled={exportingReport}>
+                            <Text className="text-white font-bold text-[12px]">{exportingReport ? 'Création du PDF…' : 'Exporter en PDF'}</Text>
                         </TouchableOpacity>
                     </View>
+                    <Text className="text-[12px] text-text opacity-60 mt-5 mb-2">Période du rapport</Text>
+                    <View className="flex-row gap-3">
+                        <TouchableOpacity
+                            className="flex-1 border border-border rounded-xl p-3"
+                            onPress={() => setReportDatePicker('start')}
+                        >
+                            <Text className="text-[11px] text-text opacity-60">Du</Text>
+                            <Text className="text-primary font-bold">{reportStartDate.toLocaleDateString('fr-FR')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            className="flex-1 border border-border rounded-xl p-3"
+                            onPress={() => setReportDatePicker('end')}
+                        >
+                            <Text className="text-[11px] text-text opacity-60">Au</Text>
+                            <Text className="text-primary font-bold">{reportEndDate.toLocaleDateString('fr-FR')}</Text>
+                        </TouchableOpacity>
+                    </View>
+                    {reportDatePicker && (
+                        <DateTimePicker
+                            value={reportDatePicker === 'start' ? reportStartDate : reportEndDate}
+                            mode="date"
+                            display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                            maximumDate={reportDatePicker === 'start' ? reportEndDate : new Date()}
+                            minimumDate={reportDatePicker === 'end' ? reportStartDate : undefined}
+                            onChange={(_, selectedDate) => {
+                                setReportDatePicker(null);
+                                if (!selectedDate) return;
+                                if (reportDatePicker === 'start') setReportStartDate(selectedDate);
+                                else setReportEndDate(selectedDate);
+                            }}
+                        />
+                    )}
                 </View>
 
                 {/* Region */}

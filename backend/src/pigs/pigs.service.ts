@@ -237,9 +237,9 @@ export class PigsService {
 
     private async enrichPig(pig: Pig) {
         const now = new Date();
-        const birth = new Date(pig.birthDate);
-        const ageInDays = Math.floor((now.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
-        const ageInWeeks = this.getAgeInWeeks(birth, now);
+        const birth = pig.birthDate ? new Date(pig.birthDate) : null;
+        const ageInDays = birth ? Math.floor((now.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24)) : null;
+        const ageInWeeks = birth ? this.getAgeInWeeks(birth, now) : 0;
 
         const currentMonth = now.getMonth();
         const currentYear = now.getFullYear();
@@ -307,7 +307,7 @@ export class PigsService {
 
         return {
             ...pig,
-            ageFormatted: `${ageInWeeks} sem ${ageInDays % 7} j`,
+            ageFormatted: ageInDays == null ? 'Âge inconnu' : `${ageInWeeks} sem ${ageInDays % 7} j`,
             ageInWeeks,
             weeksOnFarm,
             purchaseWeight,
@@ -339,10 +339,10 @@ export class PigsService {
                 isWeightManual: lastWeight?.isManual ?? false,
                 isFeedManual: todayFeeding?.isManual ?? false,
                 isUnderweight: lastWeight && norm ? lastWeight.weight < underweightThreshold : false,
-                feedPhase: ageInWeeks <= 4 ? 'démarrage' : ageInWeeks <= 12 ? 'croissance' : 'finition',
+                feedPhase: !birth ? undefined : ageInWeeks <= 4 ? 'démarrage' : ageInWeeks <= 12 ? 'croissance' : 'finition',
                 raisingPurpose: pig.raisingPurpose || 'UNDECIDED',
                 raisingPurposeLabel: this.getRaisingPurposeLabel(pig),
-                weightBasis: purchased ? 'purchase' : 'birth',
+                weightBasis: purchased ? 'purchase' : birth ? 'birth' : undefined,
                 purchaseWeight,
                 weeksOnFarm,
             },

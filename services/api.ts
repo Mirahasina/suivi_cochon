@@ -37,7 +37,12 @@ const api = axios.create({
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        console.error('API Error:', error.response?.data || error.message);
+        console.error('API Error:', {
+            method: error.config?.method?.toUpperCase(),
+            url: error.config?.url,
+            status: error.response?.status,
+            message: error.response?.data || error.message,
+        });
         return Promise.reject(error);
     },
 );
@@ -466,8 +471,8 @@ export const batchService = {
 };
 
 export const reportService = {
-    getMonthly: async () => {
-        const response = await api.get('/reports/monthly');
+    getMonthly: async (startDate: string, endDate: string) => {
+        const response = await api.get('/reports/monthly', { params: { startDate, endDate } });
         return response.data;
     },
 };

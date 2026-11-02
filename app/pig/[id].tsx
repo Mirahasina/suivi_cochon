@@ -101,7 +101,7 @@ export default function PigDetailScreen() {
     }, [id]);
 
     useEffect(() => {
-        if (!marketPrices || !pig) return;
+        if (!marketPrices || !pig || !pig.birthDate) return;
         const ageDays = getAgeInDays(pig.birthDate);
         const estimate = calculateSaleTotal(
             saleType,
@@ -368,6 +368,7 @@ export default function PigDetailScreen() {
                     <View className="mt-4 bg-white/10 p-3 rounded-xl">
                         <Text className="text-white text-[12px] opacity-90">
                             {(() => {
+                                if (!pig.birthDate) return 'Date de naissance inconnue — maturité à déterminer';
                                 const birthDate = new Date(pig.birthDate);
                                 const maleMaturityWeeks = 24; // 6 months
                                 const femaleMaturityWeeks = 28; // 7 months
