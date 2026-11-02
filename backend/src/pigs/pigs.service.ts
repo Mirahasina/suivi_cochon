@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { normalizeBreed } from '../common/breeds';
@@ -472,19 +472,31 @@ export class PigsService {
     }
 
     async recordMating(id: number, data: { partnerId?: number; date?: string; isExternal?: boolean; partnerName?: string }) {
-        const matingDate = data.date ? new Date(data.date) : new Date();
+        const matingDate = data.date
+            ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(data.date) ? `${data.date}T00:00:00.000Z` : data.date)
+            : new Date();
+        if (
+            Number.isNaN(matingDate.getTime()) ||
+            (/^\d{4}-\d{2}-\d{2}$/.test(data.date || '') && matingDate.toISOString().slice(0, 10) !== data.date)
+        ) {
+            throw new BadRequestException('Invalid mating date');
+        }
         const farrowingDate = new Date(matingDate);
-        farrowingDate.setDate(farrowingDate.getDate() + 114);
+        farrowingDate.setUTCDate(farrowingDate.getUTCDate() + 114);
 
-        await this.pigRepository.update(id, {
+        const update: Partial<Pig> = {
             matingDate,
-            partnerId: data.partnerId,
-            isExternalPartner: !!data.isExternal,
-            externalPartnerOwner: data.partnerName,
             farrowingDate,
             raisingPurpose: 'BREEDING',
-            raisingPurposeDate: new Date(),
-        });
+        };
+        if (data.partnerId !== undefined || data.isExternal !== undefined || data.partnerName !== undefined) {
+            update.partnerId = data.partnerId;
+            update.isExternalPartner = !!data.isExternal;
+            update.externalPartnerOwner = data.partnerName;
+            update.raisingPurposeDate = new Date();
+        }
+
+        await this.pigRepository.update(id, update);
         return this.findOne(id);
     }
 

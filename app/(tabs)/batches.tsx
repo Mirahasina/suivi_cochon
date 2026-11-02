@@ -10,17 +10,20 @@ export default function BatchesScreen() {
     const [buildings, setBuildings] = useState<Building[]>([]);
     const [batches, setBatches] = useState<Batch[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [newBuilding, setNewBuilding] = useState('');
     const [newBatch, setNewBatch] = useState('');
     const [selectedBuildingId, setSelectedBuildingId] = useState<number | null>(null);
 
     const load = async () => {
+        setLoadError(false);
         try {
             const [b, bt] = await Promise.all([buildingService.getAll(), batchService.getAll()]);
             setBuildings(b);
             setBatches(bt);
         } catch {
-            Alert.alert('Erreur', 'Impossible de charger les lots');
+            setLoadError(true);
         } finally {
             setLoading(false);
         }
@@ -29,24 +32,51 @@ export default function BatchesScreen() {
     useFocusEffect(useCallback(() => { setLoading(true); load(); }, []));
 
     const addBuilding = async () => {
-        if (!newBuilding.trim()) return;
-        await buildingService.create({ name: newBuilding.trim() });
-        setNewBuilding('');
-        load();
+        const name = newBuilding.trim();
+        if (!name) return Alert.alert('Nom requis', 'Saisissez un nom pour le bâtiment.');
+        setSaving(true);
+        try {
+            await buildingService.create({ name });
+            setNewBuilding('');
+            await load();
+        } catch {
+            Alert.alert('Erreur', 'Impossible d’ajouter le bâtiment. Vérifiez la connexion.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const addBatch = async () => {
-        if (!newBatch.trim()) return;
-        await batchService.create({ name: newBatch.trim(), buildingId: selectedBuildingId ?? undefined });
-        setNewBatch('');
-        load();
-        queryClient.invalidateQueries();
+        const name = newBatch.trim();
+        if (!name) return Alert.alert('Nom requis', 'Saisissez un nom pour le lot.');
+        setSaving(true);
+        try {
+            await batchService.create({ name, buildingId: selectedBuildingId ?? undefined });
+            setNewBatch('');
+            await load();
+            queryClient.invalidateQueries();
+        } catch {
+            Alert.alert('Erreur', 'Impossible d’ajouter le lot. Vérifiez la connexion.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     if (loading) {
         return (
             <View className="flex-1 justify-center items-center bg-background">
                 <ActivityIndicator size="large" color={Colors.primary} />
+            </View>
+        );
+    }
+
+    if (loadError && buildings.length === 0 && batches.length === 0) {
+        return (
+            <View className="flex-1 justify-center items-center bg-background px-8">
+                <Text className="text-center text-text">Impossible de charger les lots et bâtiments.</Text>
+                <TouchableOpacity className="bg-primary mt-5 px-6 py-3 rounded-xl" onPress={() => void load()}>
+                    <Text className="text-white font-bold">Réessayer</Text>
+                </TouchableOpacity>
             </View>
         );
     }
@@ -75,8 +105,14 @@ export default function BatchesScreen() {
                             onChangeText={setNewBuilding}
                             placeholder="Nom du bâtiment"
                         />
-                        <TouchableOpacity className="bg-primary px-4 rounded-xl justify-center" onPress={addBuilding}>
-                            <Text className="text-white font-bold">+</Text>
+                        <TouchableOpacity
+                            accessibilityRole="button"
+                            accessibilityLabel="Ajouter un bâtiment"
+                            className="bg-primary px-4 rounded-xl justify-center"
+                            onPress={addBuilding}
+                            disabled={saving}
+                        >
+                            <Text className="text-white font-bold">{saving ? '…' : '+'}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -119,8 +155,14 @@ export default function BatchesScreen() {
                             onChangeText={setNewBatch}
                             placeholder="Nom du lot (ex: Lot Janvier 2026)"
                         />
-                        <TouchableOpacity className="bg-secondary px-4 rounded-xl justify-center" onPress={addBatch}>
-                            <Text className="text-white font-bold">+</Text>
+                        <TouchableOpacity
+                            accessibilityRole="button"
+                            accessibilityLabel="Ajouter un lot"
+                            className="bg-secondary px-4 rounded-xl justify-center"
+                            onPress={addBatch}
+                            disabled={saving}
+                        >
+                            <Text className="text-white font-bold">{saving ? '…' : '+'}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>

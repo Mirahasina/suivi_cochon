@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { addDaysToDateOnly, formatDateOnly } from '../utils/reproduction-dates';
 import {
     addPigLocal,
     allocateTempPigId,
@@ -193,9 +194,11 @@ export const pigService = {
             return response.data;
         } catch (error) {
             if (isNetworkError(error)) {
+                const matingDate = date || formatDateOnly(new Date());
                 await patchPigLocal(id, {
-                    matingDate: date || new Date().toISOString(),
-                    partnerId,
+                    matingDate,
+                    farrowingDate: addDaysToDateOnly(matingDate, 114),
+                    ...(partnerId !== undefined ? { partnerId } : {}),
                     raisingPurpose: 'BREEDING',
                 } as Partial<Pig>);
                 await enqueue({

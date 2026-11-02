@@ -1,13 +1,31 @@
 import React, { useCallback, useState } from 'react';
-import { ScrollView, View, Text, TouchableOpacity, ActivityIndicator, RefreshControl, TextInput, Switch } from 'react-native';
+import { Alert, ScrollView, View, Text, TouchableOpacity, ActivityIndicator, RefreshControl, TextInput, Switch } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { healthService, VaccineSuggestion, VaccineType } from '../../services/api';
 import { Colors } from '../../constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { SwipeTabScreen } from '../../components/navigation/swipe-tab-screen';
+import { parseDateOnly } from '../../utils/reproduction-dates';
+
+type HealthFilter = 'ALL' | 'OVERDUE' | 'DUE' | 'UPCOMING';
+
+interface VaccineReminder {
+  id: number;
+  nextDueDate: string;
+  vaccineType: { name: string };
+  pig: { id: number; name: string };
+}
+
+const HEALTH_FILTERS: { key: HealthFilter; label: string }[] = [
+  { key: 'ALL', label: 'Toutes' },
+  { key: 'OVERDUE', label: 'En retard' },
+  { key: 'DUE', label: 'À faire' },
+  { key: 'UPCOMING', label: 'Bientôt' },
+];
 
 export default function HealthScreen() {
   const router = useRouter();
-  const [reminders, setReminders] = useState<any[]>([]);
+  const [reminders, setReminders] = useState<VaccineReminder[]>([]);
   const [suggestions, setSuggestions] = useState<VaccineSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +39,7 @@ export default function HealthScreen() {
   const [newVaccineName, setNewVaccineName] = useState('');
   const [newRecallDays, setNewRecallDays] = useState('90');
   const [customRecall, setCustomRecall] = useState('');
+  const [filter, setFilter] = useState<HealthFilter>('ALL');
 
   const RECALL_PRESETS = [
     { label: '7 j', days: 7 },
@@ -46,12 +65,12 @@ export default function HealthScreen() {
       setVaccineTypes(types);
       if (bio) setBiosecurity(bio);
 
-      upcoming.forEach((item: any) => {
+      upcoming.forEach((item: VaccineReminder) => {
         import('../../utils/notifications').then(({ scheduleReminder }) => {
           scheduleReminder(
             `Rappel Vaccin: ${item.vaccineType.name}`,
             `${item.pig.name} doit recevoir son vaccin.`,
-            new Date(item.nextDueDate),
+            parseDateOnly(item.nextDueDate),
             `vaccine-${item.id}`
           );
         });
@@ -82,15 +101,21 @@ export default function HealthScreen() {
     const key = `${s.pigId}-${s.vaccineTypeId}`;
     setRecordingId(key);
     try {
-      await healthService.recordVaccination({
+      const result = await healthService.recordVaccination({
         pigId: s.pigId,
         vaccineTypeId: s.vaccineTypeId,
         date: new Date().toISOString(),
         notes: `Planning: ${s.label}`,
       });
-      loadReminders();
+      await loadReminders();
+      Alert.alert(
+        'Vaccination enregistrée',
+        (result as { queued?: boolean })?.queued
+          ? 'Elle sera synchronisée lorsque la connexion sera rétablie.'
+          : `${s.vaccineName} a été marqué comme fait pour ${s.pigName}.`,
+      );
     } catch {
-      alert('Erreur');
+      Alert.alert('Erreur', 'Impossible d’enregistrer cette vaccination.');
     } finally {
       setRecordingId(null);
     }
@@ -102,7 +127,7 @@ export default function HealthScreen() {
       setVaccineTypes((prev) => prev.map((x) => (x.id === v.id ? { ...x, isEnabled: enabled } : x)));
       loadReminders();
     } catch {
-      alert('Erreur');
+      Alert.alert('Erreur', 'Impossible de modifier ce vaccin. Vérifiez la connexion.');
     }
   };
 
@@ -123,7 +148,7 @@ export default function HealthScreen() {
       setShowAddVaccine(false);
       loadReminders();
     } catch {
-      alert('Impossible d\'ajouter ce vaccin');
+      Alert.alert('Erreur', 'Impossible d’ajouter ce vaccin. Vérifiez la connexion.');
     }
   };
 
@@ -133,7 +158,7 @@ export default function HealthScreen() {
       setVaccineTypes((prev) => prev.filter((v) => v.id !== id));
       loadReminders();
     } catch {
-      alert('Erreur');
+      Alert.alert('Erreur', 'Impossible de supprimer ce vaccin.');
     }
   };
 
@@ -142,8 +167,14 @@ export default function HealthScreen() {
     if (status === 'due') return Colors.secondary;
     return Colors.primary;
   };
+  const visibleSuggestions = suggestions.filter((suggestion) =>
+    filter === 'ALL' || suggestion.status.toUpperCase() === filter,
+  );
+  const overdueCount = suggestions.filter((suggestion) => suggestion.status === 'overdue').length;
+  const dueCount = suggestions.filter((suggestion) => suggestion.status === 'due').length;
 
   return (
+    <SwipeTabScreen tab="explore">
     <View className="flex-1 bg-background">
       <View className="p-8 bg-primary rounded-b-[35px] mb-2.5">
         <Text className="text-secondary text-[28px] font-bold">Santé & prévention</Text>
@@ -166,6 +197,21 @@ export default function HealthScreen() {
           </View>
         ) : (
           <>
+            <View className="flex-row gap-3 mb-5">
+              <View className="flex-1 bg-white rounded-2xl p-3 items-center">
+                <Text className="text-danger text-xl font-bold">{overdueCount}</Text>
+                <Text className="text-xs text-text">En retard</Text>
+              </View>
+              <View className="flex-1 bg-white rounded-2xl p-3 items-center">
+                <Text className="text-secondary text-xl font-bold">{dueCount}</Text>
+                <Text className="text-xs text-text">À faire</Text>
+              </View>
+              <View className="flex-1 bg-white rounded-2xl p-3 items-center">
+                <Text className="text-primary text-xl font-bold">{reminders.length}</Text>
+                <Text className="text-xs text-text">Rappels</Text>
+              </View>
+            </View>
+
             {biosecurity && showPpa && (
               <View className="bg-[#FFEBEE] rounded-[20px] p-4 mb-5 border-2 border-danger">
                 <TouchableOpacity onPress={() => setShowPpa(false)} className="absolute top-2 right-3">
@@ -184,10 +230,26 @@ export default function HealthScreen() {
               </View>
             )}
 
-            {suggestions.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+              {HEALTH_FILTERS.map((option) => (
+                <TouchableOpacity
+                  key={option.key}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: filter === option.key }}
+                  className={`mr-2 px-4 py-2 rounded-full ${filter === option.key ? 'bg-primary' : 'bg-white'}`}
+                  onPress={() => setFilter(option.key)}
+                >
+                  <Text className={`text-xs font-semibold ${filter === option.key ? 'text-white' : 'text-primary'}`}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {visibleSuggestions.length > 0 && (
               <View className="mb-6">
                 <Text className="text-primary text-lg font-bold mb-3">À faire selon l&apos;âge</Text>
-                {suggestions.map((s) => (
+                {visibleSuggestions.map((s) => (
                   <View key={`${s.pigId}-${s.vaccineTypeId}`} className="bg-white rounded-[20px] p-4 mb-3 shadow-md">
                     <View className="flex-row items-start">
                       <View className="flex-1">
@@ -200,7 +262,7 @@ export default function HealthScreen() {
                           <Text className="text-[10px] text-primary">{s.injectionRouteLabel} — {s.injectionSite}</Text>
                         )}
                         <Text className="text-[11px] font-bold mt-1" style={{ color: statusColor(s.status) }}>
-                          {s.status === 'overdue' ? 'En retard' : s.status === 'due' ? 'À faire' : 'Bientôt'} — {new Date(s.scheduledDate).toLocaleDateString()}
+                          {s.status === 'overdue' ? 'En retard' : s.status === 'due' ? 'À faire' : 'Bientôt'} — {parseDateOnly(s.scheduledDate).toLocaleDateString('fr-FR')}
                         </Text>
                       </View>
                       <TouchableOpacity
@@ -208,11 +270,22 @@ export default function HealthScreen() {
                         onPress={() => handleMarkDone(s)}
                         disabled={recordingId === `${s.pigId}-${s.vaccineTypeId}`}
                       >
-                        <Text className="text-white text-[11px] font-bold">Fait</Text>
+                        <Text className="text-white text-[11px] font-bold">
+                          {recordingId === `${s.pigId}-${s.vaccineTypeId}` ? '...' : 'Fait'}
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </View>
                 ))}
+              </View>
+            )}
+            {visibleSuggestions.length === 0 && (
+              <View className="bg-white rounded-[20px] p-5 mb-5 items-center">
+                <Text className="text-primary font-semibold text-center">
+                  {suggestions.length === 0
+                    ? 'Aucune vaccination à planifier pour le moment.'
+                    : 'Aucune vaccination dans cette catégorie.'}
+                </Text>
               </View>
             )}
 
@@ -221,9 +294,9 @@ export default function HealthScreen() {
               reminders.map(item => (
                 <View key={item.id} className="flex-row bg-white rounded-[20px] p-[15px] mb-[15px] items-center shadow-xl shadow-primary/10">
                   <View className="items-center justify-center w-[65px] h-[65px] bg-background rounded-[15px]">
-                    <Text className="text-[22px] font-bold text-primary">{new Date(item.nextDueDate).getDate()}</Text>
+                    <Text className="text-[22px] font-bold text-primary">{parseDateOnly(item.nextDueDate).getDate()}</Text>
                     <Text className="text-[10px] text-primary uppercase font-bold">
-                      {new Date(item.nextDueDate).toLocaleString('default', { month: 'short' })}
+                      {parseDateOnly(item.nextDueDate).toLocaleString('fr-FR', { month: 'short' })}
                     </Text>
                   </View>
                   <View className="flex-1 pl-[15px]">
@@ -322,5 +395,6 @@ export default function HealthScreen() {
         )}
       </ScrollView>
     </View>
+    </SwipeTabScreen>
   );
 }

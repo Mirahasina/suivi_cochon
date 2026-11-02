@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { FeedingEntry } from '../entities/feeding-entry.entity';
 import { GrowthNorm } from '../entities/growth-norm.entity';
@@ -15,6 +16,7 @@ const mockPigRepository = {
     findOne: jest.fn(),
     save: jest.fn(),
     create: jest.fn(),
+    update: jest.fn(),
     delete: jest.fn(),
 };
 
@@ -70,6 +72,39 @@ describe('PigsService', () => {
 
     it('should be defined', () => {
         expect(service).toBeDefined();
+    });
+
+    describe('recordMating', () => {
+        it.each([
+            ['2026-09-04', '2026-12-27'],
+            ['2024-10-01', '2025-01-23'],
+            ['2023-12-01', '2024-03-24'],
+            ['2024-12-31', '2025-04-24'],
+        ])('calculates %s as mating date and %s as the expected farrowing date', async (matingDay, farrowingDay) => {
+            jest.spyOn(service, 'findOne').mockResolvedValue({ id: 1 } as never);
+            mockPigRepository.update.mockResolvedValue({ affected: 1 });
+
+            await service.recordMating(1, { date: matingDay });
+
+            const update = mockPigRepository.update.mock.calls[mockPigRepository.update.mock.calls.length - 1][1];
+            expect(update.matingDate.toISOString().slice(0, 10)).toBe(matingDay);
+            expect(update.farrowingDate.toISOString().slice(0, 10)).toBe(farrowingDay);
+        });
+
+        it('keeps the existing partner when correcting only the mating date', async () => {
+            jest.spyOn(service, 'findOne').mockResolvedValue({ id: 1 } as never);
+            mockPigRepository.update.mockResolvedValue({ affected: 1 });
+
+            await service.recordMating(1, { date: '2026-09-04' });
+
+            const update = mockPigRepository.update.mock.calls[mockPigRepository.update.mock.calls.length - 1][1];
+            expect(update).not.toHaveProperty('partnerId');
+            expect(update).not.toHaveProperty('isExternalPartner');
+        });
+
+        it('rejects invalid calendar dates', async () => {
+            await expect(service.recordMating(1, { date: '2026-02-31' })).rejects.toThrow(BadRequestException);
+        });
     });
 
     describe('findAll', () => {

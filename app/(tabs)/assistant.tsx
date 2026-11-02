@@ -3,6 +3,7 @@ import * as Location from 'expo-location';
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../../constants/theme';
+import { SwipeTabScreen } from '../../components/navigation/swipe-tab-screen';
 import { discoverAlerts, ProposedAlert } from '../../services/alertDiscovery';
 import { watchService } from '../../services/api';
 import { askHybridAssistant, ChatTurn } from '../../services/assistantHybrid';
@@ -417,6 +418,7 @@ export default function AssistantScreen() {
     const hasCoords = !!farmCoords;
 
     return (
+        <SwipeTabScreen tab="assistant">
         <View className="flex-1 bg-background">
             <View className="p-8 bg-primary rounded-b-[35px]">
                 <Text className="text-secondary text-[28px] font-bold">Aide IA</Text>
@@ -595,6 +597,10 @@ export default function AssistantScreen() {
                                 multiline
                                 placeholder="Ex: Manolo vomit depuis ce matin et ne mange plus"
                                 onSubmitEditing={ask}
+                                returnKeyType="send"
+                                blurOnSubmit
+                                textAlignVertical="top"
+                                accessibilityLabel="Votre question à l’assistant"
                             />
                             <TouchableOpacity
                                 className="bg-secondary p-3 rounded-xl items-center mt-3"
@@ -910,5 +916,6 @@ export default function AssistantScreen() {
                 </View>
             </ScrollView>
         </View>
+        </SwipeTabScreen>
     );
 }

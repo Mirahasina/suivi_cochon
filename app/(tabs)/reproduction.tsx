@@ -10,7 +10,9 @@ import {
     View,
 } from 'react-native';
 import { Colors } from '../../constants/theme';
+import { SwipeTabScreen } from '../../components/navigation/swipe-tab-screen';
 import api, { expenseService, financeService, ExpenseCategory, FinanceSummary } from '../../services/api';
+import { parseDateOnly } from '../../utils/reproduction-dates';
 
 interface BreedingStats {
     totalFemales: number;
@@ -53,6 +55,7 @@ export default function BreedingDashboard() {
     const [stats, setStats] = useState<BreedingStats | null>(null);
     const [finance, setFinance] = useState<FinanceSummary | null>(null);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [periodAll, setPeriodAll] = useState(false);
     const now = new Date();
     const [month, setMonth] = useState(now.getMonth() + 1);
@@ -65,6 +68,7 @@ export default function BreedingDashboard() {
 
     const load = useCallback(async () => {
         setLoading(true);
+        setLoadError(false);
         try {
             const [breedingRes, financeData] = await Promise.all([
                 api.get('/pigs/breeding/stats'),
@@ -76,6 +80,7 @@ export default function BreedingDashboard() {
             setFinance(financeData);
         } catch (error) {
             console.error('Error loading reproduction/finance:', error);
+            setLoadError(true);
         } finally {
             setLoading(false);
         }
@@ -144,17 +149,30 @@ export default function BreedingDashboard() {
 
     if (loading && !stats) {
         return (
-            <View className="flex-1 justify-center items-center bg-background">
-                <ActivityIndicator size="large" color={Colors.primary} />
-            </View>
+            <SwipeTabScreen tab="reproduction">
+                <View className="flex-1 justify-center items-center bg-background">
+                    <ActivityIndicator size="large" color={Colors.primary} />
+                </View>
+            </SwipeTabScreen>
         );
     }
 
     if (!stats) {
         return (
-            <View className="flex-1 justify-center items-center bg-background">
-                <Text className="text-gray-500">Aucune donnée disponible</Text>
-            </View>
+            <SwipeTabScreen tab="reproduction">
+                <View className="flex-1 justify-center items-center bg-background px-8">
+                    <Text className="text-gray-500 text-center">
+                        {loadError ? 'Impossible de charger le suivi. Vérifiez la connexion puis réessayez.' : 'Aucune donnée disponible'}
+                    </Text>
+                    <TouchableOpacity
+                        className="bg-primary mt-5 px-6 py-3 rounded-xl"
+                        onPress={() => void load()}
+                        disabled={loading}
+                    >
+                        <Text className="text-white font-bold">{loading ? 'Chargement…' : 'Réessayer'}</Text>
+                    </TouchableOpacity>
+                </View>
+            </SwipeTabScreen>
         );
     }
 
@@ -162,11 +180,23 @@ export default function BreedingDashboard() {
     const profitColor = profit >= 0 ? Colors.success : Colors.danger;
 
     return (
+        <SwipeTabScreen tab="reproduction">
         <ScrollView className="flex-1 bg-background">
             <View className="p-8 bg-primary rounded-b-[40px]">
                 <Text className="text-secondary text-[34px] font-bold">Reproduction</Text>
                 <Text className="text-white opacity-90 text-base mt-1">Gestion de l&apos;élevage</Text>
             </View>
+
+            {loadError && (
+                <TouchableOpacity
+                    className="mx-5 mt-4 bg-danger/10 border border-danger/30 rounded-xl p-3"
+                    onPress={() => void load()}
+                >
+                    <Text className="text-danger font-semibold text-center">
+                        Certaines données ne sont pas à jour. Appuyez pour réessayer.
+                    </Text>
+                </TouchableOpacity>
+            )}
 
             <View className="px-5 pt-6">
                 <Text className="text-primary text-xl font-semibold mb-4">Vue d&apos;ensemble</Text>
@@ -237,7 +267,7 @@ export default function BreedingDashboard() {
                                     <View className="flex-1">
                                         <Text className="font-bold text-lg">{farrowing.name}</Text>
                                         <Text className="text-xs text-gray-500">
-                                            Prévue le {new Date(farrowing.expectedDate).toLocaleDateString()}
+                                            Prévue le {parseDateOnly(farrowing.expectedDate).toLocaleDateString('fr-FR')}
                                         </Text>
                                     </View>
                                     <View
@@ -335,9 +365,16 @@ export default function BreedingDashboard() {
                         </Text>
                     </View>
                 ) : (
-                    <View className="bg-white rounded-[25px] p-6 mb-4 items-center">
-                        <ActivityIndicator color={Colors.primary} />
-                    </View>
+                    <TouchableOpacity
+                        className="bg-white rounded-[25px] p-6 mb-4 items-center"
+                        onPress={() => void load()}
+                        disabled={loading}
+                    >
+                        <Text className="text-gray-500 text-center">
+                            {loading ? 'Chargement des finances…' : 'Finances indisponibles. Appuyez pour réessayer.'}
+                        </Text>
+                        {loading && <ActivityIndicator color={Colors.primary} className="mt-2" />}
+                    </TouchableOpacity>
                 )}
 
                 <View className="bg-white rounded-[25px] p-6 shadow-xl shadow-primary/10 elevation-4 mb-4">
@@ -429,5 +466,6 @@ export default function BreedingDashboard() {
 
             <View style={{ height: 60 }} />
         </ScrollView>
+        </SwipeTabScreen>
     );
 }

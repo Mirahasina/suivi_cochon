@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TextInput, TouchableOpacity, ScrollView, View, Text, Platform } from 'react-native';
+import { Alert, TextInput, TouchableOpacity, ScrollView, View, Text, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { pigService, healthService, Pig } from '../services/api';
@@ -42,20 +42,34 @@ export default function AddPigScreen() {
     const breeds = [...PIG_BREEDS];
 
     const handleSubmit = async () => {
-        if (!name && origin === 'PURCHASED') return alert('Le nom est requis');
+        if (!name.trim() && origin === 'PURCHASED') return Alert.alert('Nom requis', 'Saisissez un nom pour le cochon.');
+
+        const count = Number(pigletCount);
+        const weight = initialWeight ? Number(initialWeight) : undefined;
+        const price = purchasePrice ? Number(purchasePrice) : undefined;
+        if (origin === 'FARM_BORN' && (!Number.isInteger(count) || count < 1 || count > 30)) {
+            return Alert.alert('Nombre invalide', 'Indiquez un nombre de porcelets compris entre 1 et 30.');
+        }
+        if (origin === 'PURCHASED' && (!weight || !Number.isFinite(weight) || weight <= 0)) {
+            return Alert.alert('Poids requis', 'Indiquez un poids à l’achat supérieur à 0 kg.');
+        }
+        if (weight !== undefined && (!Number.isFinite(weight) || weight <= 0)) {
+            return Alert.alert('Poids invalide', 'Le poids doit être un nombre supérieur à 0 kg.');
+        }
+        if (price !== undefined && (!Number.isFinite(price) || price < 0)) {
+            return Alert.alert('Prix invalide', 'Le prix d’achat doit être un montant positif ou nul.');
+        }
+        if (origin === 'FARM_BORN' && !motherId && females.length > 0) {
+            return Alert.alert('Mère à choisir', 'Sélectionnez la mère des porcelets ou vérifiez la liste des femelles.');
+        }
 
         setLoading(true);
         try {
-            const count = parseInt(pigletCount) || 1;
             for (let i = 0; i < count; i++) {
-                const finalName = count > 1 ? `${name || 'Porcelet'} #${i + 1}` : name;
+                const baseName = name.trim();
+                const finalName = count > 1 ? `${baseName || 'Porcelet'} #${i + 1}` : baseName || 'Porcelet';
 
                 const effectiveBirthDate = birthDate;
-
-                if (origin === 'PURCHASED' && !initialWeight) {
-                    setLoading(false);
-                    return alert('Indiquez le poids à l\'achat (environ 10 à 25 kg)');
-                }
 
                 await pigService.create({
                     name: finalName,
@@ -63,8 +77,8 @@ export default function AddPigScreen() {
                     gender,
                     birthDate: effectiveBirthDate.toISOString(),
                     purchaseDate: origin === 'PURCHASED' && purchaseDate ? purchaseDate.toISOString() : undefined,
-                    purchasePrice: origin === 'PURCHASED' && purchasePrice ? parseFloat(purchasePrice) : undefined,
-                    initialWeight: initialWeight ? parseFloat(initialWeight) : undefined,
+                    purchasePrice: origin === 'PURCHASED' ? price : undefined,
+                    initialWeight: weight,
                     isCastrated: false,
                     motherId: origin === 'FARM_BORN' ? motherId : undefined,
                     initialVaccineTypeIds: selectedVaccines,
@@ -82,7 +96,7 @@ export default function AddPigScreen() {
 
             router.back();
         } catch (error) {
-            alert('Erreur lors de la création');
+            Alert.alert('Erreur', 'Impossible d’ajouter le cochon. Vérifiez la connexion et réessayez.');
         } finally {
             setLoading(false);
         }
@@ -134,7 +148,9 @@ export default function AddPigScreen() {
                             value={pigletCount}
                             onChangeText={setPigletCount}
                             keyboardType="numeric"
+                            accessibilityLabel="Nombre de porcelets, de 1 à 30"
                         />
+                        <Text className="text-[11px] text-text opacity-50 mt-1">De 1 à 30 par portée</Text>
                     </View>
                     <View className="flex-[2]">
                         <Text className="text-[12px] text-primary mb-2 font-bold opacity-70">Mère</Text>
@@ -196,7 +212,7 @@ export default function AddPigScreen() {
                         className="bg-white border border-border rounded-[15px] p-4"
                         onPress={() => setShowBirthPicker(true)}
                     >
-                        <Text className="text-base text-text">{birthDate.toLocaleDateString()}</Text>
+                        <Text className="text-base text-text">{birthDate.toLocaleDateString('fr-FR')}</Text>
                     </TouchableOpacity>
                     {origin === 'PURCHASED' && (
                         <Text className="text-[11px] text-text opacity-50 mt-1">
@@ -225,7 +241,7 @@ export default function AddPigScreen() {
                             onPress={() => setShowPurchasePicker(true)}
                         >
                             <Text className={`text-base ${purchaseDate ? 'text-text' : 'text-[#AAA]'}`}>
-                                {purchaseDate ? purchaseDate.toLocaleDateString() : 'Choisir'}
+                                {purchaseDate ? purchaseDate.toLocaleDateString('fr-FR') : 'Choisir'}
                             </Text>
                         </TouchableOpacity>
                         {showPurchasePicker && (
@@ -273,7 +289,7 @@ export default function AddPigScreen() {
 
                 {origin === 'PURCHASED' && (
                     <View className="flex-1 mb-5">
-                        <Text className="text-[12px] text-primary mb-2 font-bold opacity-70">Prix d'Achat (Ar)</Text>
+                        <Text className="text-[12px] text-primary mb-2 font-bold opacity-70">Prix d&apos;achat (Ar)</Text>
                         <TextInput
                             className="bg-white border border-border rounded-[15px] p-4 text-base text-text"
                             value={purchasePrice}

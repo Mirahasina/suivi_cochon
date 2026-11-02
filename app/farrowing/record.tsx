@@ -1,8 +1,10 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { useState } from 'react';
-import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { pigletService } from '../../services/pigletApi';
+import { formatDateOnly, parseDateOnly } from '../../utils/reproduction-dates';
 
 export default function RecordFarrowingScreen() {
     const router = useRouter();
@@ -12,11 +14,23 @@ export default function RecordFarrowingScreen() {
     const [actualDate, setActualDate] = useState(new Date().toISOString().split('T')[0]);
     const [bornAlive, setBornAlive] = useState('');
     const [stillborn, setStillborn] = useState('0');
+    const [showDatePicker, setShowDatePicker] = useState(false);
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async () => {
-        if (!bornAlive) {
-            Alert.alert('Erreur', 'Veuillez saisir le nombre de porcelets nés vivants');
+        const validCount = (value: string) => /^\d+$/.test(value);
+        if (!validCount(bornAlive) || !validCount(stillborn)) {
+            Alert.alert('Nombre invalide', 'Saisissez un nombre entier positif ou nul pour chaque catégorie.');
+            return;
+        }
+        const aliveCount = Number(bornAlive);
+        const stillbornCount = Number(stillborn);
+        if (aliveCount + stillbornCount === 0) {
+            Alert.alert('Portée vide', 'Indiquez au moins un porcelet né vivant ou mort-né.');
+            return;
+        }
+        if (parseDateOnly(actualDate) > new Date()) {
+            Alert.alert('Date invalide', 'La date de mise bas ne peut pas être dans le futur.');
             return;
         }
 
@@ -24,9 +38,9 @@ export default function RecordFarrowingScreen() {
         try {
             await pigletService.recordFarrowing({
                 motherId: parseInt(pigId),
-                actualDate: new Date(actualDate).toISOString(),
-                bornAlive: parseInt(bornAlive),
-                stillborn: parseInt(stillborn || '0'),
+                actualDate: `${actualDate}T00:00:00.000Z`,
+                bornAlive: aliveCount,
+                stillborn: stillbornCount,
             });
 
             queryClient.invalidateQueries({ queryKey: ['pig', Number(pigId)] });
@@ -52,12 +66,26 @@ export default function RecordFarrowingScreen() {
 
                 <View className="mb-4">
                     <Text className="text-sm font-semibold text-gray-700 mb-2">Date effective</Text>
-                    <TextInput
+                    <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityLabel="Choisir la date effective de mise bas"
                         className="bg-white p-4 rounded-xl border border-gray-200"
-                        value={actualDate}
-                        onChangeText={setActualDate}
-                        placeholder="YYYY-MM-DD"
-                    />
+                        onPress={() => setShowDatePicker(true)}
+                    >
+                        <Text>{parseDateOnly(actualDate).toLocaleDateString('fr-FR')}</Text>
+                    </TouchableOpacity>
+                    {showDatePicker && (
+                        <DateTimePicker
+                            value={parseDateOnly(actualDate)}
+                            mode="date"
+                            display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                            maximumDate={new Date()}
+                            onChange={(_, date) => {
+                                setShowDatePicker(false);
+                                if (date) setActualDate(formatDateOnly(date));
+                            }}
+                        />
+                    )}
                 </View>
 
                 <View className="mb-4">
@@ -70,6 +98,7 @@ export default function RecordFarrowingScreen() {
                         onChangeText={setBornAlive}
                         keyboardType="number-pad"
                         placeholder="0"
+                        maxLength={3}
                     />
                 </View>
 
@@ -81,6 +110,7 @@ export default function RecordFarrowingScreen() {
                         onChangeText={setStillborn}
                         keyboardType="number-pad"
                         placeholder="0"
+                        maxLength={3}
                     />
                 </View>
 

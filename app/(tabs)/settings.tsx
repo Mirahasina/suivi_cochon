@@ -4,6 +4,7 @@ import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, Share, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { MADAGASCAR_REGIONS } from '../../constants/breeds';
 import { Colors } from '../../constants/theme';
+import { SwipeTabScreen } from '../../components/navigation/swipe-tab-screen';
 import { FeedRecipe, feedRecipeService, pigService, reportService } from '../../services/api';
 import { getQueueLength } from '../../services/offlineQueue';
 import { AppSettings, settingsService } from '../../services/settings';
@@ -13,6 +14,7 @@ export default function SettingsScreen() {
     const queryClient = useQueryClient();
     const [settings, setSettings] = useState<AppSettings | null>(null);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [saving, setSaving] = useState(false);
     const [syncing, setSyncing] = useState(false);
     const [online, setOnline] = useState<boolean | null>(null);
@@ -22,6 +24,7 @@ export default function SettingsScreen() {
 
     const load = async () => {
         setLoading(true);
+        setLoadError(false);
         try {
             const [s, reachable, queue, recipes] = await Promise.all([
                 settingsService.get(),
@@ -33,6 +36,9 @@ export default function SettingsScreen() {
             setOnline(reachable);
             setQueueLength(queue);
             setFeedRecipes(recipes);
+        } catch (error) {
+            console.error('Error loading settings:', error);
+            setLoadError(true);
         } finally {
             setLoading(false);
         }
@@ -66,6 +72,9 @@ export default function SettingsScreen() {
                 queryClient.invalidateQueries();
             } else alert('Tout est à jour !');
             await load();
+        } catch (error) {
+            console.error('Sync failed:', error);
+            alert('La synchronisation a échoué. Vérifiez la connexion puis réessayez.');
         } finally {
             setSyncing(false);
         }
@@ -121,11 +130,28 @@ export default function SettingsScreen() {
         }
     };
 
-    if (loading || !settings) {
+    if (loading) {
         return (
-            <View className="flex-1 justify-center items-center bg-background">
-                <ActivityIndicator size="large" color={Colors.primary} />
-            </View>
+            <SwipeTabScreen tab="settings">
+                <View className="flex-1 justify-center items-center bg-background">
+                    <ActivityIndicator size="large" color={Colors.primary} />
+                </View>
+            </SwipeTabScreen>
+        );
+    }
+
+    if (!settings) {
+        return (
+            <SwipeTabScreen tab="settings">
+                <View className="flex-1 justify-center items-center bg-background px-8">
+                    <Text className="text-center text-text">
+                        {loadError ? 'Impossible de charger les réglages.' : 'Aucun réglage disponible.'}
+                    </Text>
+                    <TouchableOpacity className="bg-primary mt-5 px-6 py-3 rounded-xl" onPress={() => void load()}>
+                        <Text className="text-white font-bold">Réessayer</Text>
+                    </TouchableOpacity>
+                </View>
+            </SwipeTabScreen>
         );
     }
 
@@ -134,6 +160,7 @@ export default function SettingsScreen() {
     };
 
     return (
+        <SwipeTabScreen tab="settings">
         <ScrollView className="flex-1 bg-background">
             <View className="p-8 bg-primary rounded-b-[35px] mb-2.5">
                 <Text className="text-secondary text-[28px] font-bold">Paramètres</Text>
@@ -308,5 +335,6 @@ export default function SettingsScreen() {
                 </TouchableOpacity>
             </View>
         </ScrollView>
+        </SwipeTabScreen>
     );
 }

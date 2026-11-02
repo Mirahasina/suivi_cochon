@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TextInput, TouchableOpacity, ScrollView, View, Text, ActivityIndicator } from 'react-native';
+import { Alert, TextInput, TouchableOpacity, ScrollView, View, Text, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { pigService } from '../../../services/api';
@@ -39,7 +39,7 @@ export default function EditPigScreen() {
                 setInitialWeight(data.initialWeight?.toString() || '');
                 setStatus(data.status);
             } catch (error) {
-                alert('Erreur chargement cochon');
+                Alert.alert('Erreur', 'Impossible de charger la fiche du cochon.');
             } finally {
                 setLoading(false);
             }
@@ -48,17 +48,27 @@ export default function EditPigScreen() {
     }, [id]);
 
     const handleSubmit = async () => {
-        if (!name) return alert('Le nom est requis');
+        const trimmedName = name.trim();
+        const weight = initialWeight ? Number(initialWeight) : undefined;
+        const price = purchasePrice ? Number(purchasePrice) : undefined;
+        if (!trimmedName) return Alert.alert('Nom requis', 'Saisissez un nom pour le cochon.');
+        if (birthDate > new Date()) return Alert.alert('Date invalide', 'La date de naissance ne peut pas être dans le futur.');
+        if (weight !== undefined && (!Number.isFinite(weight) || weight <= 0)) {
+            return Alert.alert('Poids invalide', 'Le poids initial doit être un nombre supérieur à 0 kg.');
+        }
+        if (price !== undefined && (!Number.isFinite(price) || price < 0)) {
+            return Alert.alert('Prix invalide', 'Le prix d’achat doit être un montant positif ou nul.');
+        }
 
         setSaving(true);
         try {
             await pigService.update(Number(id), {
-                name,
+                name: trimmedName,
                 breed,
                 gender,
                 birthDate: birthDate.toISOString(),
-                purchasePrice: purchasePrice ? parseFloat(purchasePrice) : undefined,
-                initialWeight: initialWeight ? parseFloat(initialWeight) : undefined,
+                purchasePrice: price,
+                initialWeight: weight,
                 status: status as any
             });
 
@@ -72,7 +82,7 @@ export default function EditPigScreen() {
 
             router.back();
         } catch (error) {
-            alert('Erreur lors de la modification');
+            Alert.alert('Erreur', 'Impossible de modifier le cochon. Vérifiez la connexion et réessayez.');
         } finally {
             setSaving(false);
         }
@@ -136,7 +146,7 @@ export default function EditPigScreen() {
             <View className="mb-5">
                 <Text className="text-[12px] text-primary mb-2 font-bold opacity-70">Date de Naissance</Text>
                 <TouchableOpacity className="bg-white border border-border rounded-[15px] p-4" onPress={() => setShowPicker(true)}>
-                    <Text style={{ color: Colors.text }}>{birthDate.toLocaleDateString()}</Text>
+                    <Text style={{ color: Colors.text }}>{birthDate.toLocaleDateString('fr-FR')}</Text>
                 </TouchableOpacity>
                 {showPicker && (
                     <DateTimePicker
@@ -200,4 +210,3 @@ export default function EditPigScreen() {
         </ScrollView>
     );
 }
-

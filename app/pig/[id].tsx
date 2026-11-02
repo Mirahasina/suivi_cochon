@@ -3,11 +3,13 @@ import { WeightChart } from '@/components/WeightChart';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors } from '../../constants/theme';
 import { Pig, pigService, Piglet, pigletService, healthService, VaccineSuggestion, VaccineType } from '../../services/api';
 import { INJECTION_ROUTES, ANIMAL_TARGETS } from '../../constants/vaccines';
 import { settingsService } from '../../services/settings';
+import { addDaysToDateOnly, formatDateOnly, parseDateOnly } from '../../utils/reproduction-dates';
 import { RAISING_PURPOSE_LABELS, RaisingPurpose } from '../../constants/raising-purpose';
 import {
     calculateSaleTotal,
@@ -29,12 +31,16 @@ export default function PigDetailScreen() {
 
     const [feedQty, setFeedQty] = useState('');
     const [feedCost, setFeedCost] = useState('');
+    const [addingFeeding, setAddingFeeding] = useState(false);
 
     const [recordingVaccine, setRecordingVaccine] = useState(false);
     const [availableMales, setAvailableMales] = useState<Pig[]>([]);
     const [selectedPartnerId, setSelectedPartnerId] = useState<number | null>(null);
     const [isExternal, setIsExternal] = useState(false);
     const [externalName, setExternalName] = useState('');
+    const [matingDate, setMatingDate] = useState(new Date());
+    const [showMatingDatePicker, setShowMatingDatePicker] = useState(false);
+    const [editingMatingDate, setEditingMatingDate] = useState(false);
     const [vaccineSuggestions, setVaccineSuggestions] = useState<VaccineSuggestion[]>([]);
     const [vaccineTypes, setVaccineTypes] = useState<VaccineType[]>([]);
     const [showAddVaccine, setShowAddVaccine] = useState(false);
@@ -108,10 +114,13 @@ export default function PigDetailScreen() {
     }, [saleType, marketPrices, pig?.birthDate]);
 
     const handleAddWeight = async () => {
-        if (!newWeight) return;
+        const weight = Number(newWeight);
+        if (!Number.isFinite(weight) || weight <= 0) {
+            return Alert.alert('Poids invalide', 'Saisissez un poids supérieur à 0 kg.');
+        }
         setAddingWeight(true);
         try {
-            const result = await pigService.addWeight(Number(id), parseFloat(newWeight));
+            const result = await pigService.addWeight(Number(id), weight);
             if ((result as any)?.queued) {
                 alert('Hors ligne — correction en file d\'attente.');
             }
@@ -126,9 +135,17 @@ export default function PigDetailScreen() {
     };
 
     const handleAddFeeding = async () => {
-        if (!feedQty || !feedCost) return;
+        const quantity = Number(feedQty);
+        const cost = Number(feedCost);
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+            return Alert.alert('Quantité invalide', 'Saisissez une quantité supérieure à 0 kg.');
+        }
+        if (!feedCost.trim() || !Number.isFinite(cost) || cost < 0) {
+            return Alert.alert('Coût invalide', 'Saisissez un coût positif ou nul en Ariary.');
+        }
+        setAddingFeeding(true);
         try {
-            const result = await pigService.addFeeding(Number(id), parseFloat(feedQty), parseFloat(feedCost));
+            const result = await pigService.addFeeding(Number(id), quantity, cost);
             if ((result as any)?.queued) {
                 alert('Hors ligne — correction en file d\'attente.');
             }
@@ -139,27 +156,58 @@ export default function PigDetailScreen() {
             fetchPig();
         } catch (error) {
             alert('Erreur lors de l\'enregistrement de l\'alimentation');
+        } finally {
+            setAddingFeeding(false);
         }
     };
 
-    const handleRecordMating = async () => {
-        if (!isExternal && !selectedPartnerId) return alert('Veuillez choisir un partenaire');
-        if (isExternal && !externalName) return alert('Veuillez saisir le nom du propriétaire');
-
+    const saveMating = async (date: string, isCorrection = false) => {
         try {
             await pigService.recordMating(
                 Number(id),
-                isExternal ? undefined : selectedPartnerId!,
-                undefined,
-                isExternal,
-                isExternal ? externalName : undefined
+                isCorrection || isExternal ? undefined : selectedPartnerId!,
+                date,
+                isCorrection ? undefined : isExternal,
+                isCorrection || !isExternal ? undefined : externalName
             );
+            if (isCorrection) setEditingMatingDate(false);
             queryClient.invalidateQueries({ queryKey: ['pig', Number(id)] });
             queryClient.invalidateQueries({ queryKey: ['pigs'] });
             fetchPig();
         } catch (error) {
-            alert('Erreur lors de l\'enregistrement de la saillie');
+            alert(isCorrection
+                ? 'Erreur lors de la correction de la date de saillie'
+                : 'Erreur lors de l\'enregistrement de la saillie');
         }
+    };
+
+    const handleRecordMating = () => {
+        if (!isExternal && !selectedPartnerId) return alert('Veuillez choisir un partenaire');
+        if (isExternal && !externalName.trim()) return alert('Veuillez saisir le nom du propriétaire');
+
+        const date = formatDateOnly(matingDate);
+        const expectedDate = addDaysToDateOnly(date, 114);
+        Alert.alert(
+            'Confirmer la saillie',
+            `Saillie : ${parseDateOnly(date).toLocaleDateString('fr-FR')}\nMise bas estimée : ${parseDateOnly(expectedDate).toLocaleDateString('fr-FR')} (environ 114 jours après).`,
+            [
+                { text: 'Modifier', style: 'cancel' },
+                { text: 'Confirmer', onPress: () => { void saveMating(date); } },
+            ],
+        );
+    };
+
+    const handleCorrectMatingDate = () => {
+        const date = formatDateOnly(matingDate);
+        const expectedDate = addDaysToDateOnly(date, 114);
+        Alert.alert(
+            'Confirmer la correction',
+            `Nouvelle saillie : ${parseDateOnly(date).toLocaleDateString('fr-FR')}\nNouvelle mise bas estimée : ${parseDateOnly(expectedDate).toLocaleDateString('fr-FR')}.`,
+            [
+                { text: 'Annuler', style: 'cancel' },
+                { text: 'Confirmer', onPress: () => { void saveMating(date, true); } },
+            ],
+        );
     };
 
     const handleCastrate = async () => {
@@ -251,8 +299,8 @@ export default function PigDetailScreen() {
     const handleSell = async () => {
         const liveWeight = parseFloat(saleWeightKg);
         const pricePerKg = parseFloat(salePricePerKg);
-        if (!liveWeight || !pricePerKg) {
-            return alert('Indiquez le poids (kg) et le prix au kg');
+        if (!Number.isFinite(liveWeight) || liveWeight <= 0 || !Number.isFinite(pricePerKg) || pricePerKg <= 0) {
+            return Alert.alert('Valeurs invalides', 'Saisissez un poids et un prix au kg supérieurs à 0.');
         }
         const billableWeight =
             saleType === 'CARCASS_KG' ? estimateCarcassKg(liveWeight, carcassYieldPercent) : liveWeight;
@@ -657,11 +705,11 @@ export default function PigDetailScreen() {
                             editable={pig.status !== 'SOLD'}
                         />
                         <TouchableOpacity
-                            className={`bg-primary p-3.5 rounded-xl min-w-[80px] items-center ${pig.status === 'SOLD' ? 'bg-[#CCC]' : ''}`}
+                            className={`bg-primary p-3.5 rounded-xl min-w-[80px] items-center ${pig.status === 'SOLD' || addingFeeding ? 'bg-[#CCC]' : ''}`}
                             onPress={handleAddFeeding}
-                            disabled={pig.status === 'SOLD'}
+                            disabled={pig.status === 'SOLD' || addingFeeding}
                         >
-                            <Text className="text-white font-bold text-[12px]">Corriger</Text>
+                            <Text className="text-white font-bold text-[12px]">{addingFeeding ? '...' : 'Corriger'}</Text>
                         </TouchableOpacity>
                     </View>
                         </>
@@ -751,8 +799,34 @@ export default function PigDetailScreen() {
                     <View className="px-5 pt-6">
                         <Text className="text-primary text-xl font-semibold mb-4">Reproduction</Text>
                         <View className="bg-white rounded-[25px] p-6 shadow-xl shadow-primary/10 elevation-4">
-                            {!pig.matingDate ? (
+                            {!pig.matingDate || editingMatingDate ? (
                                 <View>
+                                    {editingMatingDate ? (
+                                        <Text className="text-[12px] font-bold mb-2.5 text-primary">Corriger la date de saillie</Text>
+                                    ) : null}
+                                    <Text className="text-[12px] font-bold mb-2.5 text-primary">Date de saillie</Text>
+                                    <TouchableOpacity
+                                        className="bg-white rounded-xl p-3 border border-border mb-4"
+                                        onPress={() => setShowMatingDatePicker(true)}
+                                    >
+                                        <Text className="text-base">{matingDate.toLocaleDateString()}</Text>
+                                    </TouchableOpacity>
+                                    {showMatingDatePicker && (
+                                        <DateTimePicker
+                                            value={matingDate}
+                                            mode="date"
+                                            display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                                            maximumDate={new Date()}
+                                            onChange={(_, selectedDate) => {
+                                                setShowMatingDatePicker(false);
+                                                if (selectedDate) setMatingDate(selectedDate);
+                                            }}
+                                        />
+                                    )}
+                                    <Text className="text-[12px] text-secondary font-bold mb-4">
+                                        Mise bas estimée : {parseDateOnly(addDaysToDateOnly(formatDateOnly(matingDate), 114)).toLocaleDateString()}
+                                    </Text>
+                                    {!editingMatingDate && <>
                                     <View className="flex-row gap-2.5 mb-4">
                                         <TouchableOpacity
                                             className={`flex-1 p-2.5 rounded-lg border items-center ${!isExternal ? 'bg-primary border-primary' : 'border-border'}`}
@@ -800,26 +874,52 @@ export default function PigDetailScreen() {
 
                                     <TouchableOpacity
                                         className={`bg-primary p-4 rounded-[15px] items-center ${((!isExternal && !selectedPartnerId) || (isExternal && !externalName)) ? 'bg-[#CCC]' : ''}`}
-                                        onPress={handleRecordMating}
+                                        onPress={() => handleRecordMating()}
                                         disabled={(!isExternal && !selectedPartnerId) || (isExternal && !externalName)}
                                     >
                                         <Text className="text-white font-bold">Enregistrer la Saillie</Text>
                                     </TouchableOpacity>
+                                    </>}
+                                    {editingMatingDate && (
+                                        <View className="flex-row gap-2.5">
+                                            <TouchableOpacity
+                                                className="flex-1 border border-border p-4 rounded-[15px] items-center"
+                                                onPress={() => setEditingMatingDate(false)}
+                                            >
+                                                <Text className="font-bold text-primary">Annuler</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                className="flex-1 bg-primary p-4 rounded-[15px] items-center"
+                                                onPress={handleCorrectMatingDate}
+                                            >
+                                                <Text className="font-bold text-white">Enregistrer la correction</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
                                 </View>
                             ) : (
                                 <View>
                                     <View className="flex-row justify-between mb-2.5">
                                         <Text className="text-base">Date saillie</Text>
-                                        <Text className="text-base font-bold">{new Date(pig.matingDate).toLocaleDateString()}</Text>
+                                        <Text className="text-base font-bold">{parseDateOnly(pig.matingDate).toLocaleDateString()}</Text>
                                     </View>
                                     <View className="flex-row justify-between mb-2.5">
                                         <Text className="text-base">Partenaire</Text>
                                         <Text className="text-base font-bold">{pig.partnerName || 'Inconnu'}</Text>
                                     </View>
+                                    <TouchableOpacity
+                                        className="mb-4"
+                                        onPress={() => {
+                                            setMatingDate(parseDateOnly(pig.matingDate!));
+                                            setEditingMatingDate(true);
+                                        }}
+                                    >
+                                        <Text className="text-primary font-bold">Corriger la date de saillie</Text>
+                                    </TouchableOpacity>
                                     <View className="flex-row justify-between mb-2.5">
                                         <Text className="text-base">Mise bas prévue</Text>
                                         <Text className="text-base font-bold text-secondary">
-                                            {pig.farrowingDate ? new Date(pig.farrowingDate).toLocaleDateString() : '--'}
+                                            {pig.farrowingDate ? parseDateOnly(pig.farrowingDate).toLocaleDateString() : '--'}
                                         </Text>
                                     </View>
 
