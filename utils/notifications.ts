@@ -91,7 +91,10 @@ export async function scheduleReminder(title: string, body: string, date: Date, 
             title,
             body,
         },
-        trigger: date,
+        trigger: {
+            type: 'date',
+            date,
+        },
     });
 
     const dayBefore = new Date(date);
@@ -105,7 +108,10 @@ export async function scheduleReminder(title: string, body: string, date: Date, 
                 title: `Rappel Demain: ${title}`,
                 body: `Demain: ${body}`,
             },
-            trigger: dayBefore,
+            trigger: {
+                type: 'date',
+                date: dayBefore,
+            },
         });
     }
 }
